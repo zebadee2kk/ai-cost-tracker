@@ -33,6 +33,15 @@ class Config:
     # Background job interval (minutes)
     SYNC_INTERVAL_MINUTES = int(os.getenv("SYNC_INTERVAL_MINUTES", "60"))
 
+    # SendGrid (email notifications)
+    SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+    SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "noreply@ai-cost-tracker.com")
+    SENDGRID_FROM_NAME = os.getenv("SENDGRID_FROM_NAME", "AI Cost Tracker")
+
+    # Notification rate limits (max per channel per hour; defaults match spec)
+    NOTIFICATION_MAX_PER_HOUR_EMAIL = int(os.getenv("NOTIFICATION_MAX_PER_HOUR_EMAIL", "10"))
+    NOTIFICATION_MAX_PER_HOUR_SLACK = int(os.getenv("NOTIFICATION_MAX_PER_HOUR_SLACK", "20"))
+
 
 class DevelopmentConfig(Config):
     DEBUG = True
