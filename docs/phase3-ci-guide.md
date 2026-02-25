@@ -1,104 +1,69 @@
 # Phase 3: GitHub Actions CI/CD Pipeline - Implementation Guide
 
-**Feature Priority**: P1 (High Priority)  
-**Estimated Effort**: 1 week  
-**Dependencies**: None  
-**Target Sprint**: 3.1 (Week 3)
+**Created**: February 25, 2026  
+**Priority**: P1  
+**Effort**: 1 week  
+**Dependencies**: None
 
 ---
 
-## 1. Problem Statement
+## 1. Overview
 
-### Current Limitations
-- No automated testing on pull requests
-- Manual test execution required
-- No coverage tracking over time
-- No automated security scanning
-- No consistent build validation
-- Deployment is manual process
+### Purpose
+Establish automated testing, security scanning, and deployment pipeline for the AI Cost Tracker using GitHub Actions.
 
-### Business Value
-- **High**: Prevents bugs from reaching production
-- Increases developer confidence
-- Reduces manual QA time by 70%
-- Catches security vulnerabilities early
-- Enforces code quality standards
-- Enables continuous delivery
+### Goals
+- **Quality**: Catch bugs before merge with automated testing
+- **Security**: Identify vulnerabilities early
+- **Confidence**: >80% test coverage enforced
+- **Speed**: <5 minute CI pipeline runtime
+- **Cost**: Stay within GitHub Actions free tier (2,000 min/month)
 
----
-
-## 2. Best Practices & Industry Standards
-
-### CI/CD Pipeline Principles
-
-1. **Fast Feedback**: Pipeline completes in <5 minutes
-2. **Fail Fast**: Run fastest tests first
-3. **Parallel Execution**: Run independent jobs concurrently
-4. **Reproducible Builds**: Same code = same result
-5. **Security First**: Scan before merge
-6. **Coverage Thresholds**: Enforce minimum 80% coverage
-
-### GitHub Actions Best Practices
-
-- Use specific action versions (not `@latest`)
-- Cache dependencies for speed
-- Store secrets in GitHub Secrets
-- Use matrix builds for multi-version testing
-- Fail builds on warnings (strict mode)
-- Upload artifacts for debugging
+### Success Criteria
+- All PRs must pass CI before merge
+- Test coverage maintained >80% backend, >70% frontend
+- Zero high-severity vulnerabilities in production
+- <3 false positive security alerts per month
 
 ---
 
-## 3. CI/CD Workflow Design
+## 2. Pipeline Architecture
 
-### Pipeline Architecture
+### Workflow Stages
 
-```yaml
-Triggers: [push, pull_request] on branches [main, develop]
-
-Jobs:
-  1. backend-tests (PostgreSQL service)
-     ├─ Setup Python 3.10
-     ├─ Install dependencies (cached)
-     ├─ Run pytest with coverage
-     ├─ Upload coverage to Codecov
-     └─ Fail if coverage <80%
-
-  2. frontend-tests
-     ├─ Setup Node.js 18
-     ├─ Install dependencies (cached)
-     ├─ Run Jest tests
-     ├─ Check ESLint
-     └─ Build frontend
-
-  3. security-scan
-     ├─ Bandit (Python)
-     ├─ npm audit (JavaScript)
-     └─ Trivy (Docker images)
-
-  4. docker-build (only on main branch)
-     ├─ Build backend image
-     ├─ Build frontend image
-     └─ Push to Docker Hub
+```
+┌───────────────────┐
+│   Code Push/PR      │
+└─────────┬──────────┘
+           │
+     ┌─────┼─────┐
+     │           │
+┌────┴────┐   ┌─┴──────────┐
+│ Backend   │   │  Frontend     │
+│ Tests     │   │  Tests        │
+└────┬────┘   └─┬─────────┘
+     │           │
+     └───┬───────┴───┐
+         │               │
+    ┌────┴─────┐     ┌───┴──────────┐
+    │  Security  │     │  Docker Build  │
+    │  Scan      │     │  (main only)   │
+    └──────────┘     └───────────────┘
 ```
 
-### Workflow Execution Time
-
-| Job | Estimated Time | Can Parallelize |
-|-----|----------------|------------------|
-| backend-tests | 2-3 min | Yes |
-| frontend-tests | 1-2 min | Yes |
-| security-scan | 1-2 min | Yes |
-| docker-build | 3-5 min | No (depends on tests) |
-| **Total** | **4-7 min** | |
+### Job Parallelization
+- Backend tests and frontend tests run in parallel
+- Security scan runs in parallel with tests
+- Docker build only on main branch after all checks pass
 
 ---
 
-## 4. Complete Workflow Implementation
+## 3. Workflow Configuration
 
-### `.github/workflows/ci.yml`
+### Main CI/CD Workflow
 
 ```yaml
+# .github/workflows/ci.yml
 name: CI/CD Pipeline
 
 on:
@@ -110,17 +75,18 @@ on:
 env:
   PYTHON_VERSION: '3.10'
   NODE_VERSION: '18'
+  POSTGRES_VERSION: '15'
 
 jobs:
   backend-tests:
-    name: Backend Tests (Python + PostgreSQL)
+    name: Backend Tests (Python)
     runs-on: ubuntu-latest
     
     services:
       postgres:
-        image: postgres:15-alpine
+        image: postgres:15
         env:
-          POSTGRES_USER: testuser
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: testpass
           POSTGRES_DB: testdb
         options: >-
@@ -140,59 +106,62 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
-          cache-dependency-path: backend/requirements.txt
       
       - name: Install dependencies
         run: |
           cd backend
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov
+          pip install pytest pytest-cov pytest-mock
       
-      - name: Run tests with coverage
-        env:
-          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
-          SECRET_KEY: test-secret-key-for-ci
-          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY }}
+      - name: Run migrations
         run: |
           cd backend
-          pytest tests/ \
+          flask db upgrade
+        env:
+          DATABASE_URL: postgresql://postgres:testpass@localhost:5432/testdb
+          FLASK_APP: app.py
+          SECRET_KEY: test-secret-key-for-ci-only
+          ENCRYPTION_KEY: test-encryption-key-32-chars!!
+      
+      - name: Run tests with coverage
+        run: |
+          cd backend
+          pytest tests/ -v \
             --cov=. \
             --cov-report=xml \
             --cov-report=html \
-            --cov-report=term-missing \
-            --junitxml=test-results.xml \
-            -v
-      
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./backend/coverage.xml
-          flags: backend
-          fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+            --cov-report=term-missing
+        env:
+          DATABASE_URL: postgresql://postgres:testpass@localhost:5432/testdb
+          FLASK_APP: app.py
+          SECRET_KEY: test-secret-key-for-ci-only
+          ENCRYPTION_KEY: test-encryption-key-32-chars!!
       
       - name: Check coverage threshold
         run: |
           cd backend
           coverage report --fail-under=80
       
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
         with:
-          name: backend-test-results
-          path: backend/test-results.xml
+          file: ./backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       
-      - name: Upload coverage HTML report
-        if: always()
+      - name: Archive coverage report
         uses: actions/upload-artifact@v4
         with:
-          name: backend-coverage-html
+          name: backend-coverage-report
           path: backend/htmlcov/
+          retention-days: 30
 
   frontend-tests:
-    name: Frontend Tests (React + Jest)
+    name: Frontend Tests (React)
     runs-on: ubuntu-latest
     
     steps:
@@ -211,7 +180,7 @@ jobs:
           cd frontend
           npm ci
       
-      - name: Run ESLint
+      - name: Run linter
         run: |
           cd frontend
           npm run lint
@@ -221,24 +190,32 @@ jobs:
           cd frontend
           npm test -- --coverage --watchAll=false
       
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./frontend/coverage/coverage-final.json
-          flags: frontend
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Check coverage threshold
+        run: |
+          cd frontend
+          # Jest will fail if coverage below thresholds in package.json
       
-      - name: Build frontend
+      - name: Build production bundle
         run: |
           cd frontend
           npm run build
       
-      - name: Upload build artifacts
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./frontend/coverage/coverage-final.json
+          flags: frontend
+          name: frontend-coverage
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      
+      - name: Archive build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
           path: frontend/build/
+          retention-days: 7
 
   security-scan:
     name: Security Scanning
@@ -248,54 +225,59 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       
-      - name: Run Bandit (Python security linter)
+      - name: Run Bandit (Python security)
         run: |
           pip install bandit[toml]
           bandit -r backend/ -ll -f json -o bandit-report.json || true
           bandit -r backend/ -ll
       
       - name: Upload Bandit report
-        if: always()
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: bandit-security-report
           path: bandit-report.json
+          retention-days: 30
       
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      
-      - name: Run npm audit
+      - name: Run npm audit (JavaScript)
         run: |
           cd frontend
+          npm audit --audit-level=high --json > ../npm-audit.json || true
           npm audit --audit-level=high
       
-      - name: Run Trivy vulnerability scanner (filesystem)
+      - name: Upload npm audit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-report
+          path: npm-audit.json
+          retention-days: 30
+      
+      - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-results.sarif'
-          severity: 'HIGH,CRITICAL'
+          severity: 'CRITICAL,HIGH'
       
       - name: Upload Trivy results to GitHub Security
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
           sarif_file: 'trivy-results.sarif'
 
   docker-build:
-    name: Build and Push Docker Images
+    name: Docker Build & Push
     runs-on: ubuntu-latest
     needs: [backend-tests, frontend-tests, security-scan]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
       - name: Checkout code
@@ -304,261 +286,429 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
-      - name: Log in to Docker Hub
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       
-      - name: Extract metadata (tags, labels)
-        id: meta-backend
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-backend
-          tags: |
-            type=sha,prefix={{branch}}-
-            type=ref,event=branch
-            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Extract version from commit
+        id: version
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
       
       - name: Build and push backend image
         uses: docker/build-push-action@v5
         with:
           context: ./backend
           push: true
-          tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      
-      - name: Extract metadata for frontend
-        id: meta-frontend
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-frontend
           tags: |
-            type=sha,prefix={{branch}}-
-            type=ref,event=branch
-            type=raw,value=latest,enable={{is_default_branch}}
+            ${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-backend:${{ steps.version.outputs.date }}-${{ steps.version.outputs.sha_short }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-backend:latest
+          cache-to: type=inline
       
       - name: Build and push frontend image
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
           push: true
-          tags: ${{ steps.meta-frontend.outputs.tags }}
-          labels: ${{ steps.meta-frontend.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-frontend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-frontend:${{ steps.version.outputs.date }}-${{ steps.version.outputs.sha_short }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-frontend:latest
+          cache-to: type=inline
+      
+      - name: Scan backend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-backend:latest
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+      
+      - name: Scan frontend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-frontend:latest
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
 ```
 
 ---
 
-## 5. GitHub Secrets Configuration
+## 4. Coverage Configuration
+
+### Backend Coverage (.coveragerc)
+
+```ini
+# backend/.coveragerc
+[run]
+source = .
+omit =
+    */tests/*
+    */test_*.py
+    */__pycache__/*
+    */venv/*
+    */env/*
+    */migrations/*
+    setup.py
+    */config.py
+
+[report]
+precision = 2
+show_missing = True
+skip_covered = False
+
+[html]
+directory = htmlcov
+```
+
+### Frontend Coverage (package.json)
+
+```json
+{
+  "jest": {
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx}",
+      "!src/index.js",
+      "!src/reportWebVitals.js",
+      "!src/**/*.test.{js,jsx}"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 70,
+        "functions": 70,
+        "lines": 70,
+        "statements": 70
+      }
+    },
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html",
+      "json"
+    ]
+  }
+}
+```
+
+---
+
+## 5. Security Scanning Configuration
+
+### Bandit Configuration
+
+```toml
+# backend/pyproject.toml or .bandit
+[tool.bandit]
+exclude_dirs = [
+    "/tests",
+    "/venv",
+    "/env"
+]
+skips = [
+    "B404",  # Import subprocess (needed for scheduler)
+    "B603"   # Subprocess without shell (safe usage)
+]
+```
+
+### Trivy Configuration
+
+```yaml
+# .trivyignore (optional - use sparingly)
+# Ignore specific CVEs if false positives
+# CVE-2024-XXXXX
+```
+
+---
+
+## 6. Repository Secrets Setup
 
 ### Required Secrets
 
-Navigate to **Settings → Secrets and variables → Actions → New repository secret**
+In GitHub repo: **Settings → Secrets and variables → Actions**
 
 | Secret Name | Description | How to Generate |
 |-------------|-------------|------------------|
-| `CODECOV_TOKEN` | Codecov upload token | Get from codecov.io after linking repo |
 | `DOCKERHUB_USERNAME` | Docker Hub username | Your Docker Hub account |
-| `DOCKERHUB_TOKEN` | Docker Hub access token | Docker Hub → Account Settings → Security |
-| `CI_ENCRYPTION_KEY` | Test encryption key | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+| `DOCKERHUB_TOKEN` | Docker Hub access token | Docker Hub → Account Settings → Security → New Access Token |
+| `CODECOV_TOKEN` | Codecov upload token | Codecov.io → Repository Settings → Copy token |
 
-### Setting Up Codecov
+### Optional Secrets (Phase 4)
 
-1. Visit [codecov.io](https://codecov.io) and sign in with GitHub
-2. Add your repository
-3. Copy the upload token
-4. Add to GitHub Secrets as `CODECOV_TOKEN`
-5. Add Codecov badge to README:
-   ```markdown
-   [![codecov](https://codecov.io/gh/zebadee2kk/ai-cost-tracker/branch/main/graph/badge.svg)](https://codecov.io/gh/zebadee2kk/ai-cost-tracker)
-   ```
-
-### Setting Up Docker Hub
-
-1. Create Docker Hub account at [hub.docker.com](https://hub.docker.com)
-2. Go to **Account Settings → Security → New Access Token**
-3. Name: "GitHub Actions CI", Permissions: Read & Write
-4. Copy token immediately (won't be shown again)
-5. Add username and token to GitHub Secrets
+| Secret Name | Description |
+|-------------|-------------|
+| `DEPLOY_SSH_KEY` | SSH key for deployment server |
+| `SLACK_WEBHOOK` | Slack webhook for CI notifications |
+| `AWS_ACCESS_KEY_ID` | AWS credentials for deployment |
+| `AWS_SECRET_ACCESS_KEY` | AWS secret key |
 
 ---
 
-## 6. Cost Analysis
+## 7. Branch Protection Rules
 
-### GitHub Actions Free Tier
+### Configuration
 
-| Plan | Minutes/Month | Cost |
-|------|---------------|------|
-| **Public repos** | Unlimited | Free ✅ |
-| **Private repos (Free)** | 2,000 minutes | Free |
-| **Private repos (Pro)** | 3,000 minutes | Included |
+GitHub repo: **Settings → Branches → Add rule**
 
-### Estimated Usage (Private Repo)
+**Branch name pattern**: `main`
 
-- Pipeline duration: ~5 minutes
-- Runs per day: ~10 (PRs + merges)
-- Monthly usage: 5 min × 10 runs × 22 days = **1,100 minutes/month**
-- **Verdict**: Well within free tier ✅
-
-### External Service Costs
-
-| Service | Plan | Cost |
-|---------|------|------|
-| **Codecov** | Open source | Free ✅ |
-| **Docker Hub** | Free tier | Free ✅ (1 private repo, unlimited public) |
-| **Trivy scanning** | Built into GitHub | Free ✅ |
-
-**Total Monthly Cost**: $0 🎉
+**Protection rules**:
+- ✅ Require a pull request before merging
+  - ✅ Require approvals: 1
+  - ✅ Dismiss stale pull request approvals when new commits are pushed
+- ✅ Require status checks to pass before merging
+  - ✅ Require branches to be up to date before merging
+  - **Required checks**:
+    - Backend Tests (Python)
+    - Frontend Tests (React)
+    - Security Scanning
+- ✅ Require conversation resolution before merging
+- ❌ Require signed commits (optional)
+- ❌ Require linear history (optional)
+- ✅ Include administrators
 
 ---
 
-## 7. Badge Integration
+## 8. Badge Configuration
 
-### README.md Badges
-
-Add to top of README after existing badges:
+### Add to README.md
 
 ```markdown
 [![CI/CD](https://github.com/zebadee2kk/ai-cost-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/zebadee2kk/ai-cost-tracker/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/zebadee2kk/ai-cost-tracker/branch/main/graph/badge.svg)](https://codecov.io/gh/zebadee2kk/ai-cost-tracker)
-[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](https://github.com/zebadee2kk/ai-cost-tracker/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Node](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
 ```
 
 ---
 
-## 8. Branch Protection Rules
+## 9. Local Development Workflow
 
-### Recommended Settings
-
-Navigate to **Settings → Branches → Add branch protection rule**
-
-**Branch name pattern**: `main`
-
-Enable:
-- ☑️ Require a pull request before merging
-- ☑️ Require approvals: 1
-- ☑️ Dismiss stale approvals
-- ☑️ Require status checks to pass before merging
-  - Required checks:
-    - `backend-tests`
-    - `frontend-tests`
-    - `security-scan`
-- ☑️ Require branches to be up to date
-- ☑️ Require conversation resolution
-- ☑️ Do not allow bypassing the above settings
-
----
-
-## 9. Testing the Pipeline
-
-### Initial Setup Checklist
-
-1. ☐ Create `.github/workflows/ci.yml` file
-2. ☐ Add all required GitHub Secrets
-3. ☐ Set up Codecov integration
-4. ☐ Set up Docker Hub account
-5. ☐ Push to `main` branch
-6. ☐ Verify workflow runs successfully
-7. ☐ Enable branch protection rules
-
-### Testing Steps
+### Run Tests Locally Before Push
 
 ```bash
-# 1. Create feature branch
-git checkout -b test/ci-pipeline
+# Backend tests
+cd backend
+pytest tests/ -v --cov=. --cov-report=term-missing
+coverage report --fail-under=80
 
-# 2. Make small change
-echo "# CI Test" >> README.md
-git add README.md
-git commit -m "test: verify CI pipeline"
+# Frontend tests
+cd frontend
+npm test -- --coverage --watchAll=false
 
-# 3. Push and create PR
-git push origin test/ci-pipeline
+# Security scans
+pip install bandit
+bandit -r backend/ -ll
 
-# 4. Observe workflow run on GitHub
-# Go to: Actions tab → CI/CD Pipeline workflow
-
-# 5. Verify all jobs pass
-# backend-tests: ✅
-# frontend-tests: ✅
-# security-scan: ✅
-
-# 6. Merge PR (docker-build should run)
+cd frontend
+npm audit --audit-level=high
 ```
 
-### Troubleshooting Common Issues
+### Pre-commit Hooks (Recommended)
 
-**Issue**: `pg_isready: command not found`  
-**Fix**: Add `options: --health-cmd pg_isready` to postgres service
+```bash
+# Install pre-commit
+pip install pre-commit
 
-**Issue**: `npm ERR! code ELIFECYCLE`  
-**Fix**: Check Node.js version matches local development
+# Create .pre-commit-config.yaml
+cat > .pre-commit-config.yaml << 'EOF'
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+  
+  - repo: https://github.com/psf/black
+    rev: 24.1.1
+    hooks:
+      - id: black
+        files: ^backend/
+  
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        files: ^backend/
+        args: ['--max-line-length=120']
+  
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.6
+    hooks:
+      - id: bandit
+        files: ^backend/
+        args: ['-ll']
+EOF
 
-**Issue**: `Coverage decreased`  
-**Fix**: Add tests or adjust threshold temporarily
+# Install hooks
+pre-commit install
 
-**Issue**: `Docker build failed`  
-**Fix**: Ensure Dockerfile exists in backend/frontend directories
-
----
-
-## 10. Implementation Roadmap
-
-### Phase 1: Basic CI (Day 1-2)
-- ✅ Backend tests job
-- ✅ Frontend tests job
-- ✅ PostgreSQL service
-- ✅ Coverage reporting
-
-### Phase 2: Security (Day 3)
-- ✅ Bandit Python scanning
-- ✅ npm audit
-- ✅ Trivy vulnerability scanning
-
-### Phase 3: Docker Build (Day 4)
-- ✅ Docker Hub integration
-- ✅ Build and push backend image
-- ✅ Build and push frontend image
-
-### Phase 4: Optimization (Day 5)
-- ✅ Dependency caching
-- ✅ Branch protection rules
-- ✅ Badge integration
-- ✅ Documentation
-
----
-
-## 11. Acceptance Criteria
-
-- ✅ CI pipeline runs on every PR
-- ✅ All tests execute successfully
-- ✅ Coverage threshold enforced (>80% backend)
-- ✅ Security scans complete without HIGH/CRITICAL issues
-- ✅ Docker images build and push to registry
-- ✅ Pipeline completes in <5 minutes
-- ✅ Branch protection prevents merging with failing tests
-- ✅ Codecov badge shows in README
-- ✅ GitHub Actions badge shows in README
-- ✅ Documentation complete
+# Run manually
+pre-commit run --all-files
+```
 
 ---
 
-## 12. Future Enhancements (Post-Phase 3)
+## 10. Monitoring & Notifications
 
-- **Deploy to staging**: Automatic deployment on main branch merge
-- **Performance tests**: Lighthouse CI for frontend
-- **E2E tests**: Playwright or Cypress integration
-- **Semantic versioning**: Automatic changelog generation
-- **Slack notifications**: Alert on build failures
-- **Matrix testing**: Test multiple Python/Node versions
-- **Scheduled runs**: Nightly security scans
+### GitHub Actions Notifications
+
+```yaml
+# Add to end of ci.yml
+  notify-on-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, security-scan]
+    if: failure() && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Send Slack notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: 'CI Pipeline Failed on main branch!'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        if: always()
+```
+
+### Codecov Dashboard
+
+- View coverage trends: https://codecov.io/gh/zebadee2kk/ai-cost-tracker
+- Set coverage targets per file/directory
+- Track coverage over time
+- Comment coverage changes on PRs
 
 ---
 
-**Status**: ✅ Ready for Implementation  
-**Assigned To**: TBD  
-**Sprint**: 3.1 (Week 3)
+## 11. Cost Optimization
+
+### GitHub Actions Free Tier
+
+- **Public repos**: Unlimited minutes
+- **Private repos**: 2,000 minutes/month free
+
+### Estimated Usage
+
+| Job | Duration | Runs/Month | Total |
+|-----|----------|------------|-------|
+| Backend Tests | 3 min | 40 | 120 min |
+| Frontend Tests | 2 min | 40 | 80 min |
+| Security Scan | 2 min | 40 | 80 min |
+| Docker Build | 5 min | 20 | 100 min |
+| **Total** | | | **380 min/month** |
+
+**Verdict**: Well within free tier limits
+
+### Optimization Tips
+
+1. **Cache dependencies**: Use `cache: 'pip'` and `cache: 'npm'`
+2. **Parallel jobs**: Run tests in parallel
+3. **Selective triggers**: Don't run Docker build on every PR
+4. **Matrix strategy**: Test multiple Python/Node versions only on main
+5. **Artifact retention**: Keep artifacts for 7-30 days, not forever
+
+---
+
+## 12. Troubleshooting
+
+### Common Issues
+
+**Issue**: Backend tests fail with database connection error  
+**Solution**: Ensure PostgreSQL service health check passes before running tests
+
+**Issue**: Frontend build fails with memory error  
+**Solution**: Add `NODE_OPTIONS=--max_old_space_size=4096` to build step
+
+**Issue**: Codecov upload fails  
+**Solution**: Check `CODECOV_TOKEN` secret is set correctly
+
+**Issue**: Docker Hub push fails with authentication error  
+**Solution**: Verify `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets
+
+**Issue**: Security scan reports false positives  
+**Solution**: Add exceptions to `.trivyignore` or `bandit` config (document why)
+
+---
+
+## 13. Implementation Checklist
+
+### Day 1-2: Workflow Setup
+- [ ] Create `.github/workflows/ci.yml`
+- [ ] Configure PostgreSQL service for backend tests
+- [ ] Add Python setup with pip caching
+- [ ] Add Node.js setup with npm caching
+- [ ] Test backend job runs successfully
+- [ ] Test frontend job runs successfully
+
+### Day 3: Security Scanning
+- [ ] Add Bandit security scan
+- [ ] Add npm audit scan
+- [ ] Add Trivy vulnerability scanner
+- [ ] Configure Trivy SARIF upload to GitHub Security
+- [ ] Test security scan jobs
+
+### Day 4: Coverage Reporting
+- [ ] Sign up for Codecov.io
+- [ ] Add `CODECOV_TOKEN` to repository secrets
+- [ ] Configure coverage upload for backend
+- [ ] Configure coverage upload for frontend
+- [ ] Add coverage badges to README
+- [ ] Verify coverage reports on Codecov dashboard
+
+### Day 5: Docker Build
+- [ ] Create Docker Hub account (if needed)
+- [ ] Add `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets
+- [ ] Configure Docker Buildx
+- [ ] Add backend image build job
+- [ ] Add frontend image build job
+- [ ] Add image tagging (latest + versioned)
+- [ ] Test Docker build on main branch
+
+### Day 6-7: Polish & Documentation
+- [ ] Configure branch protection rules
+- [ ] Add CI/CD badge to README
+- [ ] Set up pre-commit hooks
+- [ ] Write CI/CD troubleshooting guide
+- [ ] Document secrets setup process
+- [ ] Create video walkthrough (optional)
+- [ ] Test full workflow end-to-end
+
+---
+
+## 14. Future Enhancements
+
+### Phase 4+ Ideas
+
+**Deployment Automation**
+- Auto-deploy to staging on develop branch
+- Auto-deploy to production on main branch (with approval)
+- Rollback mechanism for failed deployments
+
+**Performance Testing**
+- Load testing with Locust or Artillery
+- Frontend performance budget (Lighthouse CI)
+- API response time monitoring
+
+**Advanced Security**
+- SAST with Semgrep or CodeQL
+- Dependency review action
+- Secret scanning
+- Container signing with Cosign
+
+**Notifications**
+- Slack notifications for CI status
+- Email notifications for security vulnerabilities
+- GitHub Discussions posts for releases
+
+---
+
+**Document Status**: ✅ Complete  
+**Ready for Implementation**: Yes  
+**Estimated Effort**: 1 week  
+**Cost**: $0 (GitHub Actions free tier)  
+**Risks**: None identified

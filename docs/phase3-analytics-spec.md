@@ -1,392 +1,531 @@
 # Phase 3: Enhanced Analytics & Forecasting - Technical Specification
 
-**Feature Priority**: P2 (Nice to Have)  
-**Estimated Effort**: 2-3 weeks  
-**Dependencies**: Export system (for data processing)  
-**Target Sprint**: 3.3 (Weeks 7-9)
+**Created**: February 25, 2026  
+**Priority**: P2  
+**Effort**: 2-3 weeks  
+**Dependencies**: Export system (optional - for data validation)
 
 ---
 
 ## 1. Problem Statement
 
-### User Need
+### Business Need
 Users need predictive insights to:
-- **Forecast future costs**: Estimate month-end/quarter-end spending
-- **Detect anomalies**: Identify unusual usage patterns early
-- **Plan budgets**: Allocate resources based on trends
-- **Optimize spending**: Identify cost-saving opportunities
+- Forecast future costs (30/60/90 days)
+- Detect unusual usage patterns (anomalies)
+- Plan budgets proactively
+- Identify cost optimization opportunities
 
-### Current Limitation
-- No cost forecasting beyond simple multiplication
-- No anomaly detection for usage spikes
-- Limited trend analysis (month-over-month)
-- No predictive alerts
+### Current Limitations
+- Only historical data shown
+- No cost projections
+- No anomaly detection
+- Limited trend analysis
+- No budget burn rate tracking
 
-### Business Value
-- **Medium-High**: Differentiates from basic cost trackers
-- Enables proactive cost management
-- Reduces surprise overages
-- Supports data-driven decision-making
-- Critical for enterprise adoption
-
----
-
-## 2. Forecasting Algorithms
-
-### Algorithm Comparison
-
-| Algorithm | Complexity | Accuracy | Speed | Best For |
-|-----------|------------|----------|-------|----------|
-| **Moving Average** | Low | Low-Medium | Fast | Stable patterns |
-| **Linear Regression** | Low | Medium | Fast | Trending data |
-| **ARIMA** | High | High | Slow | Seasonal data |
-| **Prophet (Facebook)** | Medium | High | Medium | Business data with holidays |
-| **LSTM (Deep Learning)** | Very High | Very High | Slow | Large datasets |
-
-### Recommended Approach: **Linear Regression** ✅
-
-**Why?**
-- Simple to implement and understand
-- Fast computation (<100ms)
-- No external dependencies beyond scikit-learn
-- Sufficient accuracy for monthly forecasts (<15% MAPE)
-- Good baseline for Phase 3 MVP
-
-**Future Enhancement**: Upgrade to ARIMA for seasonality detection in Phase 4
+### Success Criteria
+- <15% MAPE (Mean Absolute Percentage Error) for 30-day forecasts
+- <10% false positive rate for anomaly detection
+- <2 seconds page load time for analytics dashboard
+- 70%+ user adoption of forecasting features
 
 ---
 
-## 3. Cost Forecasting Implementation
+## 2. Feature Overview
 
-### Linear Regression Model
+### Phase 3 Analytics Features
+
+| Feature | Description | Complexity | Priority |
+|---------|-------------|------------|----------|
+| **Cost Forecasting** | 30/60/90-day cost predictions | Medium | P2 |
+| **Anomaly Detection** | Statistical outlier identification | Medium | P2 |
+| **Trend Analysis** | Month-over-month, QoQ comparisons | Low | P2 |
+| **Budget Tracking** | Visual burn rate and progress | Low | P2 |
+| **Model Breakdown** | Cost by model (GPT-4 vs Claude vs Haiku) | Low | P2 |
+| **Usage Heatmap** | Day-of-week and hour-of-day patterns | Medium | P3 |
+
+---
+
+## 3. Cost Forecasting
+
+### Algorithm Selection
+
+**Approach Comparison**:
+
+| Method | Pros | Cons | Accuracy | Complexity | Recommendation |
+|--------|------|------|----------|------------|----------------|
+| **Moving Average** | Simple, fast | No trend capture | Low | Low | Baseline only |
+| **Linear Regression** | Fast, interpretable | Assumes linear trend | Medium | Low | ✅ **MVP Choice** |
+| **Exponential Smoothing** | Handles trends | Requires tuning | Medium-High | Medium | Phase 4 upgrade |
+| **ARIMA** | Handles seasonality | Complex, slow | High | High | Enterprise feature |
+| **Prophet (Meta)** | Auto-detects patterns | Requires 1+ year data | High | Medium | Phase 4 option |
+
+**Recommendation**: Start with **Linear Regression** for MVP. Simple, fast, and sufficient for most use cases.
+
+### Implementation (Linear Regression)
 
 ```python
+# services/analytics/forecaster.py
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from datetime import datetime, timedelta
-from typing import Dict, List
+from typing import List, Tuple, Dict
 
 class CostForecaster:
-    """Forecast future costs using linear regression"""
-    
     def __init__(self, historical_data: List[Dict]):
         """
         Args:
-            historical_data: List of {date: str, cost: float}
+            historical_data: List of dicts with 'date' and 'cost' keys
+                [{"date": "2026-01-01", "cost": 12.50}, ...]
         """
-        self.data = sorted(historical_data, key=lambda x: x['date'])
+        self.data = historical_data
         self.model = LinearRegression()
-        self._train()
+        self.X = None
+        self.y = None
     
-    def _train(self):
-        """Train model on historical data"""
-        if len(self.data) < 7:  # Need at least 7 days
-            raise ValueError("Insufficient data for forecasting (minimum 7 days)")
+    def prepare_data(self):
+        """Convert dates to numeric features."""
+        dates = [datetime.strptime(d['date'], '%Y-%m-%d') for d in self.data]
+        base_date = min(dates)
         
-        # Convert dates to numeric values (days since first data point)
-        start_date = datetime.fromisoformat(self.data[0]['date'])
-        X = np.array([
-            (datetime.fromisoformat(d['date']) - start_date).days 
-            for d in self.data
-        ]).reshape(-1, 1)
-        
-        y = np.array([d['cost'] for d in self.data])
-        
-        self.model.fit(X, y)
-        self.start_date = start_date
+        # Days since first date
+        self.X = np.array([(d - base_date).days for d in dates]).reshape(-1, 1)
+        self.y = np.array([d['cost'] for d in self.data])
     
-    def forecast(self, days_ahead: int = 30) -> Dict:
+    def train(self):
+        """Train the linear regression model."""
+        if self.X is None:
+            self.prepare_data()
+        
+        self.model.fit(self.X, self.y)
+    
+    def predict(self, days_ahead: int = 30) -> Dict:
         """
-        Predict costs for next N days
+        Predict future costs.
+        
+        Args:
+            days_ahead: Number of days to forecast (30, 60, or 90)
         
         Returns:
             {
-                'daily_forecast': [{date: str, cost: float, confidence: str}],
-                'total_forecast': float,
-                'trend': 'increasing'|'decreasing'|'stable',
-                'confidence_level': 'high'|'medium'|'low'
+                'predictions': [(date, cost), ...],
+                'total_forecasted': float,
+                'daily_rate': float,
+                'confidence_interval': (lower, upper),
+                'mape': float (if validation data available)
             }
         """
-        # Get last historical date
-        last_date = datetime.fromisoformat(self.data[-1]['date'])
-        last_day_num = (last_date - self.start_date).days
+        if self.X is None:
+            self.prepare_data()
         
-        # Predict future days
-        future_days = np.arange(
-            last_day_num + 1, 
-            last_day_num + days_ahead + 1
-        ).reshape(-1, 1)
+        # Get last date from training data
+        last_date = datetime.strptime(self.data[-1]['date'], '%Y-%m-%d')
+        last_X_value = self.X[-1][0]
         
-        predictions = self.model.predict(future_days)
+        # Generate future dates
+        future_dates = [(last_date + timedelta(days=i+1)).strftime('%Y-%m-%d') 
+                       for i in range(days_ahead)]
+        future_X = np.array([last_X_value + i + 1 for i in range(days_ahead)]).reshape(-1, 1)
         
-        # Build forecast response
-        daily_forecast = []
-        for i, pred_cost in enumerate(predictions):
-            date = last_date + timedelta(days=i+1)
-            daily_forecast.append({
-                'date': date.strftime('%Y-%m-%d'),
-                'cost': max(0, pred_cost),  # Ensure non-negative
-                'confidence': self._get_confidence(i, days_ahead)
-            })
+        # Predict
+        predictions = self.model.predict(future_X)
         
-        return {
-            'daily_forecast': daily_forecast,
-            'total_forecast': max(0, sum(predictions)),
-            'trend': self._determine_trend(),
-            'confidence_level': self._overall_confidence(),
-            'model_type': 'linear_regression',
-            'r_squared': self.model.score(
-                np.array([(datetime.fromisoformat(d['date']) - self.start_date).days 
-                         for d in self.data]).reshape(-1, 1),
-                np.array([d['cost'] for d in self.data])
-            )
-        }
-    
-    def _determine_trend(self) -> str:
-        """Determine if costs are increasing, decreasing, or stable"""
-        slope = self.model.coef_[0]
-        
-        if slope > 0.5:  # Increasing by >$0.50/day
-            return 'increasing'
-        elif slope < -0.5:  # Decreasing by >$0.50/day
-            return 'decreasing'
-        else:
-            return 'stable'
-    
-    def _get_confidence(self, days_out: int, total_days: int) -> str:
-        """Confidence decreases further into future"""
-        ratio = days_out / total_days
-        if ratio < 0.33:
-            return 'high'
-        elif ratio < 0.67:
-            return 'medium'
-        else:
-            return 'low'
-    
-    def _overall_confidence(self) -> str:
-        """Overall model confidence based on R-squared"""
-        r2 = self.model.score(
-            np.array([(datetime.fromisoformat(d['date']) - self.start_date).days 
-                     for d in self.data]).reshape(-1, 1),
-            np.array([d['cost'] for d in self.data])
+        # Calculate confidence interval (simplified - assumes normal distribution)
+        residuals = self.y - self.model.predict(self.X)
+        std_error = np.std(residuals)
+        confidence_interval = (
+            np.sum(predictions) - 1.96 * std_error * days_ahead,
+            np.sum(predictions) + 1.96 * std_error * days_ahead
         )
         
-        if r2 > 0.8:
-            return 'high'
-        elif r2 > 0.5:
-            return 'medium'
-        else:
-            return 'low'
-
-# Usage example
-historical_data = [
-    {'date': '2026-02-01', 'cost': 10.50},
-    {'date': '2026-02-02', 'cost': 12.30},
-    # ... more data
-]
-
-forecaster = CostForecaster(historical_data)
-forecast = forecaster.forecast(days_ahead=30)
-print(f"30-day forecast: ${forecast['total_forecast']:.2f}")
-print(f"Trend: {forecast['trend']}")
-print(f"Confidence: {forecast['confidence_level']}")
+        return {
+            'predictions': list(zip(future_dates, predictions.tolist())),
+            'total_forecasted': float(np.sum(predictions)),
+            'daily_rate': float(self.model.coef_[0]),
+            'confidence_interval': {
+                'lower': float(confidence_interval[0]),
+                'upper': float(confidence_interval[1])
+            },
+            'slope': float(self.model.coef_[0]),
+            'intercept': float(self.model.intercept_)
+        }
+    
+    def calculate_mape(self, test_data: List[Dict]) -> float:
+        """
+        Calculate Mean Absolute Percentage Error on test data.
+        
+        Args:
+            test_data: List of actual values to compare against
+        
+        Returns:
+            MAPE as percentage (e.g., 12.5 for 12.5% error)
+        """
+        actual = np.array([d['cost'] for d in test_data])
+        
+        # Prepare X values for test data
+        base_date = datetime.strptime(self.data[0]['date'], '%Y-%m-%d')
+        test_dates = [datetime.strptime(d['date'], '%Y-%m-%d') for d in test_data]
+        test_X = np.array([(d - base_date).days for d in test_dates]).reshape(-1, 1)
+        
+        predicted = self.model.predict(test_X)
+        
+        # Avoid division by zero
+        mask = actual != 0
+        mape = np.mean(np.abs((actual[mask] - predicted[mask]) / actual[mask])) * 100
+        
+        return float(mape)
 ```
 
-### Forecast Accuracy Metric: MAPE
+### API Endpoint
 
 ```python
-def calculate_mape(actual: List[float], predicted: List[float]) -> float:
-    """
-    Mean Absolute Percentage Error
-    Target: <15% for monthly forecasts
-    """
-    actual_arr = np.array(actual)
-    predicted_arr = np.array(predicted)
-    
-    # Avoid division by zero
-    non_zero_mask = actual_arr != 0
-    
-    mape = np.mean(
-        np.abs((actual_arr[non_zero_mask] - predicted_arr[non_zero_mask]) / actual_arr[non_zero_mask])
-    ) * 100
-    
-    return mape
+# routes/analytics.py
+from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from models import UsageRecord, Account
+from services.analytics.forecaster import CostForecaster
 
-# Example
-actual = [10.5, 11.2, 12.0]
-predicted = [10.8, 11.5, 11.8]
-mape = calculate_mape(actual, predicted)
-print(f"MAPE: {mape:.2f}%")  # Target: <15%
+analytics_bp = Blueprint('analytics', __name__)
+
+@analytics_bp.route('/api/analytics/forecast', methods=['GET'])
+@jwt_required()
+def get_forecast():
+    """
+    Get cost forecast for specified period.
+    
+    Query params:
+        - account_id: int (optional - defaults to all accounts)
+        - days_ahead: int (30, 60, or 90 - default 30)
+        - include_confidence: bool (default true)
+    
+    Returns:
+        {
+            "forecast": {
+                "predictions": [["2026-03-01", 12.50], ...],
+                "total_forecasted": 375.00,
+                "daily_rate": 12.50,
+                "confidence_interval": {"lower": 350.00, "upper": 400.00}
+            },
+            "historical_summary": {
+                "total_days": 60,
+                "total_cost": 750.00,
+                "average_daily": 12.50,
+                "trend": "increasing"  # or "decreasing" or "stable"
+            }
+        }
+    """
+    user_id = get_jwt_identity()
+    account_id = request.args.get('account_id', type=int)
+    days_ahead = request.args.get('days_ahead', type=int, default=30)
+    
+    if days_ahead not in [30, 60, 90]:
+        return jsonify({"error": "days_ahead must be 30, 60, or 90"}), 400
+    
+    # Fetch historical data (last 90 days minimum for good predictions)
+    query = UsageRecord.query.join(Account).filter(Account.user_id == user_id)
+    
+    if account_id:
+        query = query.filter(UsageRecord.account_id == account_id)
+    
+    # Group by date and sum costs
+    from sqlalchemy import func
+    from datetime import datetime, timedelta
+    
+    ninety_days_ago = datetime.utcnow() - timedelta(days=90)
+    
+    results = query.filter(UsageRecord.timestamp >= ninety_days_ago) \
+                   .with_entities(
+                       func.date(UsageRecord.timestamp).label('date'),
+                       func.sum(UsageRecord.cost).label('total_cost')
+                   ) \
+                   .group_by(func.date(UsageRecord.timestamp)) \
+                   .order_by('date') \
+                   .all()
+    
+    if len(results) < 14:
+        return jsonify({
+            "error": "Insufficient data for forecasting. Need at least 14 days of historical data."
+        }), 400
+    
+    # Prepare data for forecaster
+    historical_data = [
+        {"date": str(r.date), "cost": float(r.total_cost)}
+        for r in results
+    ]
+    
+    # Train and predict
+    forecaster = CostForecaster(historical_data)
+    forecaster.train()
+    forecast = forecaster.predict(days_ahead)
+    
+    # Calculate historical summary
+    total_cost = sum(d['cost'] for d in historical_data)
+    average_daily = total_cost / len(historical_data)
+    
+    # Determine trend
+    if forecast['slope'] > 0.5:
+        trend = "increasing"
+    elif forecast['slope'] < -0.5:
+        trend = "decreasing"
+    else:
+        trend = "stable"
+    
+    return jsonify({
+        "forecast": forecast,
+        "historical_summary": {
+            "total_days": len(historical_data),
+            "total_cost": total_cost,
+            "average_daily": average_daily,
+            "trend": trend
+        }
+    })
 ```
 
 ---
 
 ## 4. Anomaly Detection
 
-### Z-Score Method (Recommended)
-
-**Concept**: Identify data points that deviate significantly from the mean
-
-**Formula**:
-```
-z_score = (x - μ) / σ
-
-Where:
-  x = current value
-  μ = mean of historical values
-  σ = standard deviation
-
-Anomaly if |z_score| > 3 (99.7% confidence)
-```
-
-### Implementation
+### Algorithm (Z-Score Method)
 
 ```python
+# services/analytics/anomaly_detector.py
 import numpy as np
 from typing import List, Dict
 from datetime import datetime
 
 class AnomalyDetector:
-    """Detect usage anomalies using statistical methods"""
-    
-    def __init__(self, historical_data: List[Dict], threshold: float = 3.0):
+    def __init__(self, threshold: float = 3.0):
         """
         Args:
-            historical_data: List of {date: str, cost: float, tokens: int}
-            threshold: Z-score threshold (default: 3.0 = 99.7% confidence)
+            threshold: Z-score threshold (default 3 = 99.7% confidence)
         """
-        self.data = historical_data
         self.threshold = threshold
-        self.mean = np.mean([d['cost'] for d in historical_data])
-        self.std = np.std([d['cost'] for d in historical_data])
     
-    def detect_anomalies(self) -> List[Dict]:
-        """Identify anomalous usage patterns"""
-        if self.std == 0:  # No variance in data
-            return []
+    def detect(self, usage_data: List[Dict]) -> List[Dict]:
+        """
+        Detect anomalies in usage data using Z-score method.
+        
+        Args:
+            usage_data: List of dicts with 'date' and 'cost' keys
+        
+        Returns:
+            List of anomaly records:
+            [
+                {
+                    "date": "2026-02-15",
+                    "cost": 150.00,
+                    "z_score": 4.5,
+                    "severity": "high",  # "medium" or "high"
+                    "deviation": 100.00,  # Dollars above/below mean
+                    "percentage_deviation": 200.0  # Percentage above/below mean
+                },
+                ...
+            ]
+        """
+        if len(usage_data) < 7:
+            return []  # Need at least 7 days for meaningful statistics
+        
+        costs = np.array([d['cost'] for d in usage_data])
+        
+        # Calculate statistics
+        mean = np.mean(costs)
+        std = np.std(costs)
+        
+        if std == 0:
+            return []  # No variation, no anomalies
         
         anomalies = []
         
-        for record in self.data:
+        for i, record in enumerate(usage_data):
             cost = record['cost']
-            z_score = (cost - self.mean) / self.std
+            z_score = (cost - mean) / std
             
             if abs(z_score) > self.threshold:
+                severity = "high" if abs(z_score) > 5 else "medium"
+                deviation = cost - mean
+                percentage_deviation = (deviation / mean) * 100 if mean > 0 else 0
+                
                 anomalies.append({
-                    'date': record['date'],
-                    'cost': cost,
-                    'tokens': record.get('tokens', 0),
-                    'z_score': round(z_score, 2),
-                    'severity': self._classify_severity(z_score),
-                    'expected_range': {
-                        'min': round(self.mean - (self.threshold * self.std), 2),
-                        'max': round(self.mean + (self.threshold * self.std), 2)
-                    },
-                    'deviation_percentage': round(((cost - self.mean) / self.mean) * 100, 1)
+                    "date": record['date'],
+                    "cost": cost,
+                    "z_score": float(z_score),
+                    "severity": severity,
+                    "deviation": float(deviation),
+                    "percentage_deviation": float(percentage_deviation),
+                    "mean": float(mean),
+                    "std": float(std)
                 })
         
-        return sorted(anomalies, key=lambda x: abs(x['z_score']), reverse=True)
+        return anomalies
     
-    def _classify_severity(self, z_score: float) -> str:
-        """Classify anomaly severity"""
-        abs_z = abs(z_score)
+    def detect_spike(self, usage_data: List[Dict], window_size: int = 7) -> List[Dict]:
+        """
+        Detect sudden spikes by comparing each day to rolling average.
         
-        if abs_z > 5:
-            return 'critical'  # Extremely rare event
-        elif abs_z > 4:
-            return 'high'
-        elif abs_z > 3:
-            return 'medium'
-        else:
-            return 'low'
-    
-    def check_latest(self, new_record: Dict) -> Dict:
-        """Check if latest usage is anomalous"""
-        cost = new_record['cost']
-        z_score = (cost - self.mean) / self.std if self.std > 0 else 0
+        Args:
+            usage_data: List of dicts with 'date' and 'cost' keys
+            window_size: Days to include in rolling average
         
-        is_anomaly = abs(z_score) > self.threshold
+        Returns:
+            List of spike events
+        """
+        if len(usage_data) < window_size + 1:
+            return []
         
-        return {
-            'is_anomaly': is_anomaly,
-            'z_score': round(z_score, 2),
-            'severity': self._classify_severity(z_score) if is_anomaly else None,
-            'message': self._generate_message(cost, z_score, is_anomaly)
-        }
-    
-    def _generate_message(self, cost: float, z_score: float, is_anomaly: bool) -> str:
-        """Generate human-readable anomaly message"""
-        if not is_anomaly:
-            return f"Usage is within normal range (${self.mean:.2f} ± ${3*self.std:.2f})"
+        costs = np.array([d['cost'] for d in usage_data])
+        spikes = []
         
-        if z_score > 0:
-            return f"Usage spike detected: ${cost:.2f} is {abs(z_score):.1f}σ above normal (${self.mean:.2f})"
-        else:
-            return f"Unusual low usage: ${cost:.2f} is {abs(z_score):.1f}σ below normal (${self.mean:.2f})"
-
-# Usage example
-historical = [
-    {'date': '2026-02-01', 'cost': 10.50, 'tokens': 100000},
-    {'date': '2026-02-02', 'cost': 11.20, 'tokens': 110000},
-    {'date': '2026-02-03', 'cost': 12.00, 'tokens': 115000},
-    {'date': '2026-02-04', 'cost': 50.00, 'tokens': 500000},  # Anomaly!
-]
-
-detector = AnomalyDetector(historical)
-anomalies = detector.detect_anomalies()
-
-for anomaly in anomalies:
-    print(f"Anomaly on {anomaly['date']}: ${anomaly['cost']:.2f}")
-    print(f"  Severity: {anomaly['severity']}")
-    print(f"  Z-score: {anomaly['z_score']}")
-    print(f"  Deviation: {anomaly['deviation_percentage']}%")
+        for i in range(window_size, len(costs)):
+            window = costs[i-window_size:i]
+            window_mean = np.mean(window)
+            window_std = np.std(window)
+            
+            current = costs[i]
+            
+            # Spike = current value > mean + 2*std
+            if window_std > 0 and current > (window_mean + 2 * window_std):
+                spikes.append({
+                    "date": usage_data[i]['date'],
+                    "cost": float(current),
+                    "expected_range": {
+                        "lower": float(window_mean - 2 * window_std),
+                        "upper": float(window_mean + 2 * window_std)
+                    },
+                    "spike_magnitude": float(current - window_mean),
+                    "spike_percentage": float(((current - window_mean) / window_mean) * 100) if window_mean > 0 else 0
+                })
+        
+        return spikes
 ```
 
-### Alternative: Rolling Window Z-Score
+### API Endpoint
 
-**For detecting recent changes**:
 ```python
-def rolling_anomaly_detection(data: List[Dict], window_size: int = 7) -> List[Dict]:
-    """Detect anomalies using rolling window statistics"""
-    anomalies = []
+# routes/analytics.py (continued)
+@analytics_bp.route('/api/analytics/anomalies', methods=['GET'])
+@jwt_required()
+def get_anomalies():
+    """
+    Detect anomalies in usage data.
     
-    for i in range(window_size, len(data)):
-        window = data[i-window_size:i]
-        window_costs = [d['cost'] for d in window]
-        
-        mean = np.mean(window_costs)
-        std = np.std(window_costs)
-        
-        current = data[i]
-        z_score = (current['cost'] - mean) / std if std > 0 else 0
-        
-        if abs(z_score) > 3:
-            anomalies.append({
-                'date': current['date'],
-                'cost': current['cost'],
-                'z_score': z_score,
-                'window_mean': mean,
-                'window_std': std
-            })
+    Query params:
+        - account_id: int (optional)
+        - days: int (default 90 - lookback period)
+        - threshold: float (default 3.0 - Z-score threshold)
     
-    return anomalies
+    Returns:
+        {
+            "anomalies": [
+                {"date": "2026-02-15", "cost": 150.00, "z_score": 4.5, ...},
+                ...
+            ],
+            "spikes": [
+                {"date": "2026-02-20", "cost": 120.00, "spike_magnitude": 80.00, ...},
+                ...
+            ],
+            "summary": {
+                "total_anomalies": 3,
+                "severity_breakdown": {"high": 1, "medium": 2}
+            }
+        }
+    """
+    user_id = get_jwt_identity()
+    account_id = request.args.get('account_id', type=int)
+    days = request.args.get('days', type=int, default=90)
+    threshold = request.args.get('threshold', type=float, default=3.0)
+    
+    # Fetch historical data
+    query = UsageRecord.query.join(Account).filter(Account.user_id == user_id)
+    
+    if account_id:
+        query = query.filter(UsageRecord.account_id == account_id)
+    
+    from datetime import datetime, timedelta
+    from sqlalchemy import func
+    
+    lookback_date = datetime.utcnow() - timedelta(days=days)
+    
+    results = query.filter(UsageRecord.timestamp >= lookback_date) \
+                   .with_entities(
+                       func.date(UsageRecord.timestamp).label('date'),
+                       func.sum(UsageRecord.cost).label('total_cost')
+                   ) \
+                   .group_by(func.date(UsageRecord.timestamp)) \
+                   .order_by('date') \
+                   .all()
+    
+    if len(results) < 7:
+        return jsonify({
+            "error": "Insufficient data for anomaly detection. Need at least 7 days."
+        }), 400
+    
+    # Prepare data
+    usage_data = [
+        {"date": str(r.date), "cost": float(r.total_cost)}
+        for r in results
+    ]
+    
+    # Detect anomalies and spikes
+    detector = AnomalyDetector(threshold=threshold)
+    anomalies = detector.detect(usage_data)
+    spikes = detector.detect_spike(usage_data)
+    
+    # Calculate summary
+    severity_breakdown = {}
+    for anomaly in anomalies:
+        severity = anomaly['severity']
+        severity_breakdown[severity] = severity_breakdown.get(severity, 0) + 1
+    
+    return jsonify({
+        "anomalies": anomalies,
+        "spikes": spikes,
+        "summary": {
+            "total_anomalies": len(anomalies),
+            "total_spikes": len(spikes),
+            "severity_breakdown": severity_breakdown
+        }
+    })
 ```
 
 ---
 
-## 5. Enhanced Dashboard Visualizations
+## 5. Frontend Dashboard
 
-### Forecast Line Chart (Chart.js)
+### Enhanced Analytics Page
 
-```javascript
+```jsx
+// pages/EnhancedAnalyticsPage.jsx
+import React, { useState, useEffect } from 'react';
 import { Line } from 'react-chartjs-2';
+import api from '../services/api';
+import './EnhancedAnalyticsPage.css';
 
-function ForecastChart({ historicalData, forecastData }) {
+function EnhancedAnalyticsPage() {
+  const [forecastData, setForecastData] = useState(null);
+  const [anomalies, setAnomalies] = useState([]);
+  const [historicalData, setHistoricalData] = useState([]);
+  const [forecastDays, setForecastDays] = useState(30);
+  
+  useEffect(() => {
+    loadAnalytics();
+  }, [forecastDays]);
+  
+  const loadAnalytics = async () => {
+    // Load historical data
+    const usage = await api.get('/api/usage');
+    setHistoricalData(usage.data);
+    
+    // Load forecast
+    const forecast = await api.get(`/api/analytics/forecast?days_ahead=${forecastDays}`);
+    setForecastData(forecast.data);
+    
+    // Load anomalies
+    const anom = await api.get('/api/analytics/anomalies');
+    setAnomalies(anom.data.anomalies);
+  };
+  
+  // Prepare chart data
   const chartData = {
-    labels: [
-      ...historicalData.map(d => d.date),
-      ...forecastData.map(d => d.date)
-    ],
     datasets: [
       {
         label: 'Historical Cost',
@@ -396,332 +535,230 @@ function ForecastChart({ historicalData, forecastData }) {
         fill: true
       },
       {
-        label: 'Forecast',
-        data: [
-          // Connect to last historical point
-          { 
-            x: historicalData[historicalData.length - 1].date, 
-            y: historicalData[historicalData.length - 1].cost 
-          },
-          ...forecastData.map(d => ({ x: d.date, y: d.cost }))
-        ],
+        label: `Forecast (${forecastDays} days)`,
+        data: forecastData?.forecast.predictions.map(([date, cost]) => ({ x: date, y: cost })) || [],
         borderColor: '#FF9800',
-        backgroundColor: 'rgba(255, 152, 0, 0.05)',
-        borderDash: [5, 5],  // Dashed line
-        fill: true,
-        pointRadius: 3,
-        pointBackgroundColor: (context) => {
-          const confidence = forecastData[context.dataIndex - 1]?.confidence;
-          return confidence === 'high' ? '#FF9800' : 
-                 confidence === 'medium' ? '#FFC107' : '#FFE082';
-        }
+        borderDash: [5, 5],
+        backgroundColor: 'rgba(255, 152, 0, 0.1)',
+        fill: true
+      },
+      {
+        label: 'Anomalies',
+        data: anomalies.map(a => ({ x: a.date, y: a.cost })),
+        pointBackgroundColor: '#F44336',
+        pointRadius: 8,
+        pointStyle: 'triangle',
+        showLine: false
       }
     ]
   };
-
-  const options = {
-    plugins: {
-      title: { display: true, text: '30-Day Cost Forecast' },
-      tooltip: {
-        callbacks: {
-          afterLabel: (context) => {
-            if (context.datasetIndex === 1 && context.dataIndex > 0) {
-              const confidence = forecastData[context.dataIndex - 1]?.confidence;
-              return `Confidence: ${confidence || 'N/A'}`;
-            }
-          }
-        }
-      },
-      annotation: {
-        annotations: {
-          line1: {
-            type: 'line',
-            xMin: historicalData[historicalData.length - 1].date,
-            xMax: historicalData[historicalData.length - 1].date,
-            borderColor: '#9E9E9E',
-            borderWidth: 2,
-            borderDash: [5, 5],
-            label: {
-              content: 'Forecast Start',
-              enabled: true,
-              position: 'top'
-            }
-          }
-        }
-      }
-    },
-    scales: {
-      x: { 
-        type: 'time',
-        time: { unit: 'day' },
-        title: { display: true, text: 'Date' }
-      },
-      y: { 
-        title: { display: true, text: 'Cost (USD)' },
-        beginAtZero: true
-      }
-    }
-  };
-
-  return <Line data={chartData} options={options} />;
-}
-```
-
-### Anomaly Markers on Timeline
-
-```javascript
-function AnomalyChart({ usageData, anomalies }) {
-  const anomalyDates = new Set(anomalies.map(a => a.date));
   
-  const chartData = {
-    labels: usageData.map(d => d.date),
-    datasets: [{
-      label: 'Daily Cost',
-      data: usageData,
-      borderColor: '#2196F3',
-      pointRadius: (context) => {
-        const date = context.label;
-        return anomalyDates.has(date) ? 8 : 4;
-      },
-      pointBackgroundColor: (context) => {
-        const date = context.label;
-        if (anomalyDates.has(date)) {
-          const anomaly = anomalies.find(a => a.date === date);
-          return anomaly.severity === 'critical' ? '#F44336' : '#FF9800';
-        }
-        return '#2196F3';
-      },
-      pointStyle: (context) => {
-        const date = context.label;
-        return anomalyDates.has(date) ? 'triangle' : 'circle';
-      }
-    }]
-  };
-
-  return <Line data={chartData} />;
-}
-```
-
-### Budget Gauge Component
-
-```jsx
-function BudgetGauge({ currentCost, budget }) {
-  const percentage = (currentCost / budget) * 100;
-  
-  const getColor = () => {
-    if (percentage < 70) return '#4CAF50';  // Green
-    if (percentage < 90) return '#FF9800';  // Orange
-    return '#F44336';  // Red
-  };
-
   return (
-    <div className="budget-gauge">
-      <div className="gauge-container">
-        <svg viewBox="0 0 200 100" className="gauge-svg">
-          {/* Background arc */}
-          <path
-            d="M 20 90 A 80 80 0 0 1 180 90"
-            fill="none"
-            stroke="#E0E0E0"
-            strokeWidth="15"
-          />
-          {/* Progress arc */}
-          <path
-            d="M 20 90 A 80 80 0 0 1 180 90"
-            fill="none"
-            stroke={getColor()}
-            strokeWidth="15"
-            strokeDasharray={`${percentage * 2.51} 251`}
-            strokeLinecap="round"
-          />
-        </svg>
-        <div className="gauge-value">
-          <div className="percentage">{percentage.toFixed(0)}%</div>
-          <div className="label">${currentCost.toFixed(2)} / ${budget.toFixed(2)}</div>
+    <div className="analytics-page">
+      <h1>📊 Enhanced Analytics</h1>
+      
+      {/* Forecast Summary Cards */}
+      <div className="summary-cards">
+        <div className="card">
+          <h3>30-Day Forecast</h3>
+          <p className="value">${forecastData?.forecast.total_forecasted.toFixed(2)}</p>
+          <p className="subtitle">
+            {forecastData?.historical_summary.trend === 'increasing' ? '📈' : '📉'} 
+            {forecastData?.historical_summary.trend}
+          </p>
+        </div>
+        
+        <div className="card">
+          <h3>Daily Burn Rate</h3>
+          <p className="value">${forecastData?.forecast.daily_rate.toFixed(2)}/day</p>
+          <p className="subtitle">Average projected cost</p>
+        </div>
+        
+        <div className="card">
+          <h3>Confidence Range</h3>
+          <p className="value">
+            ${forecastData?.forecast.confidence_interval.lower.toFixed(2)} - 
+            ${forecastData?.forecast.confidence_interval.upper.toFixed(2)}
+          </p>
+          <p className="subtitle">95% confidence interval</p>
+        </div>
+        
+        <div className="card alert">
+          <h3>Anomalies Detected</h3>
+          <p className="value">{anomalies.length}</p>
+          <p className="subtitle">Unusual usage patterns</p>
         </div>
       </div>
+      
+      {/* Chart Controls */}
+      <div className="chart-controls">
+        <label>
+          Forecast Period:
+          <select value={forecastDays} onChange={(e) => setForecastDays(Number(e.target.value))}>
+            <option value={30}>30 Days</option>
+            <option value={60}>60 Days</option>
+            <option value={90}>90 Days</option>
+          </select>
+        </label>
+      </div>
+      
+      {/* Main Chart */}
+      <div className="chart-container">
+        <Line data={chartData} options={chartOptions} />
+      </div>
+      
+      {/* Anomalies Table */}
+      {anomalies.length > 0 && (
+        <div className="anomalies-section">
+          <h2>🚨 Detected Anomalies</h2>
+          <table className="anomalies-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Cost</th>
+                <th>Severity</th>
+                <th>Deviation</th>
+                <th>Z-Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {anomalies.map((anomaly, i) => (
+                <tr key={i} className={`severity-${anomaly.severity}`}>
+                  <td>{anomaly.date}</td>
+                  <td>${anomaly.cost.toFixed(2)}</td>
+                  <td>
+                    {anomaly.severity === 'high' ? '🔴' : '🟡'} {anomaly.severity}
+                  </td>
+                  <td>{anomaly.deviation > 0 ? '+' : ''}${anomaly.deviation.toFixed(2)}</td>
+                  <td>{anomaly.z_score.toFixed(2)}σ</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
+
+export default EnhancedAnalyticsPage;
 ```
 
 ---
 
-## 6. API Endpoints
-
-### Forecast Endpoint
-
-#### `GET /api/analytics/forecast`
-Get cost forecast for next N days
-
-**Query Parameters**:
-- `account_id` (optional): Specific account
-- `days_ahead` (optional, default: 30): Forecast period
-
-**Response**:
-```json
-{
-  "forecast": {
-    "daily_forecast": [
-      {"date": "2026-02-26", "cost": 12.50, "confidence": "high"},
-      {"date": "2026-02-27", "cost": 12.75, "confidence": "high"}
-    ],
-    "total_forecast": 375.00,
-    "trend": "increasing",
-    "confidence_level": "high",
-    "model_type": "linear_regression",
-    "r_squared": 0.85
-  },
-  "historical_summary": {
-    "days_analyzed": 30,
-    "avg_daily_cost": 11.50,
-    "total_historical_cost": 345.00
-  }
-}
-```
-
-### Anomaly Detection Endpoint
-
-#### `GET /api/analytics/anomalies`
-Get detected anomalies
-
-**Query Parameters**:
-- `account_id` (optional): Specific account
-- `start_date`, `end_date` (optional): Date range
-- `min_severity` (optional): Filter by severity
-
-**Response**:
-```json
-{
-  "anomalies": [
-    {
-      "date": "2026-02-15",
-      "cost": 50.00,
-      "tokens": 500000,
-      "z_score": 4.5,
-      "severity": "high",
-      "expected_range": {"min": 8.00, "max": 15.00},
-      "deviation_percentage": 333.3
-    }
-  ],
-  "total_anomalies": 1
-}
-```
-
-### Trend Analysis Endpoint
-
-#### `GET /api/analytics/trends`
-Get usage and cost trends
-
-**Response**:
-```json
-{
-  "month_over_month": {
-    "current_month": 345.00,
-    "previous_month": 280.00,
-    "change_percentage": 23.2,
-    "trend": "increasing"
-  },
-  "week_over_week": {
-    "current_week": 85.00,
-    "previous_week": 78.00,
-    "change_percentage": 9.0,
-    "trend": "increasing"
-  },
-  "by_service": [
-    {"service": "ChatGPT", "cost": 200.00, "percentage": 58.0},
-    {"service": "Claude", "cost": 145.00, "percentage": 42.0}
-  ]
-}
-```
-
----
-
-## 7. Testing Strategy
+## 6. Testing Strategy
 
 ### Unit Tests
 
 ```python
-def test_forecast_linear_regression():
-    """Test linear regression forecast"""
-    historical = [
-        {'date': f'2026-02-{str(i+1).zfill(2)}', 'cost': 10.0 + i}
-        for i in range(15)
-    ]
-    
-    forecaster = CostForecaster(historical)
-    forecast = forecaster.forecast(days_ahead=7)
-    
-    assert len(forecast['daily_forecast']) == 7
-    assert forecast['total_forecast'] > 0
-    assert forecast['trend'] in ['increasing', 'decreasing', 'stable']
+# tests/test_forecaster.py
+import pytest
+from services.analytics.forecaster import CostForecaster
 
-def test_anomaly_detection():
-    """Test Z-score anomaly detection"""
-    data = [
-        {'date': f'2026-02-{str(i+1).zfill(2)}', 'cost': 10.0, 'tokens': 100000}
-        for i in range(10)
-    ]
-    data.append({'date': '2026-02-11', 'cost': 50.0, 'tokens': 500000})  # Anomaly
+def test_forecaster_basic():
+    # Generate synthetic data (linear trend)
+    data = [{"date": f"2026-01-{i+1:02d}", "cost": 10.0 + i * 0.5} for i in range(30)]
     
-    detector = AnomalyDetector(data)
-    anomalies = detector.detect_anomalies()
+    forecaster = CostForecaster(data)
+    forecaster.train()
     
-    assert len(anomalies) == 1
-    assert anomalies[0]['date'] == '2026-02-11'
-    assert anomalies[0]['severity'] in ['medium', 'high', 'critical']
+    forecast = forecaster.predict(30)
+    
+    assert 'predictions' in forecast
+    assert len(forecast['predictions']) == 30
+    assert forecast['total_forecasted'] > 0
+    assert forecast['daily_rate'] > 0
 
-def test_forecast_insufficient_data():
-    """Test forecast with insufficient data"""
-    historical = [{'date': '2026-02-01', 'cost': 10.0}]  # Only 1 day
+def test_forecaster_accuracy():
+    # Use first 60 days to train, next 30 to test
+    all_data = [{"date": f"2026-01-{i+1:02d}", "cost": 10.0 + i * 0.5} for i in range(90)]
+    train_data = all_data[:60]
+    test_data = all_data[60:]
     
-    with pytest.raises(ValueError):
-        forecaster = CostForecaster(historical)
+    forecaster = CostForecaster(train_data)
+    forecaster.train()
+    
+    mape = forecaster.calculate_mape(test_data)
+    
+    assert mape < 15.0  # Less than 15% error
+```
+
+### Integration Tests
+
+```python
+# tests/test_analytics_endpoints.py
+def test_forecast_endpoint(client, auth_headers, seed_usage_data):
+    response = client.get('/api/analytics/forecast?days_ahead=30', headers=auth_headers)
+    
+    assert response.status_code == 200
+    data = response.json
+    
+    assert 'forecast' in data
+    assert 'historical_summary' in data
+    assert len(data['forecast']['predictions']) == 30
+
+def test_anomalies_endpoint(client, auth_headers, seed_usage_data_with_spike):
+    response = client.get('/api/analytics/anomalies', headers=auth_headers)
+    
+    assert response.status_code == 200
+    data = response.json
+    
+    assert 'anomalies' in data
+    assert data['summary']['total_anomalies'] > 0
 ```
 
 ---
 
-## 8. Implementation Effort
+## 7. Implementation Checklist
 
-| Task | Effort | Notes |
-|------|--------|-------|
-| **Forecasting algorithm** | 3 days | Linear regression, API endpoint |
-| **Anomaly detection** | 2 days | Z-score method, API endpoint |
-| **Frontend charts** | 3 days | Forecast line, anomaly markers, gauge |
-| **Trend analysis** | 2 days | Month-over-month, service breakdown |
-| **Database optimization** | 1 day | Indexes for analytics queries |
-| **Testing** | 2 days | Unit, integration tests |
-| **Documentation** | 1 day | User guide, algorithm explanations |
+### Week 1: Forecasting (Days 1-5)
+- [ ] Implement CostForecaster class
+- [ ] Add `/api/analytics/forecast` endpoint
+- [ ] Write unit tests for forecaster
+- [ ] Test with real usage data
+- [ ] Validate MAPE <15%
 
-**Total**: 14 days (2-3 weeks)
+### Week 2: Anomaly Detection (Days 6-10)
+- [ ] Implement AnomalyDetector class
+- [ ] Add `/api/analytics/anomalies` endpoint
+- [ ] Write unit tests for detector
+- [ ] Test with synthetic spikes
+- [ ] Tune Z-score threshold
 
----
-
-## 9. Acceptance Criteria
-
-- ✅ 30/60/90-day cost forecasts accurate (<15% MAPE)
-- ✅ Anomaly detection identifies usage spikes
-- ✅ Forecast chart displays with confidence indicators
-- ✅ Anomaly markers visible on timeline
-- ✅ Budget gauge shows real-time progress
-- ✅ Trend analysis (MoM, WoW) functional
-- ✅ Performance <2s page load
-- ✅ >80% test coverage
-- ✅ Documentation complete
+### Week 3: Frontend & Polish (Days 11-15)
+- [ ] Create EnhancedAnalyticsPage component
+- [ ] Add forecast chart with confidence bands
+- [ ] Add anomaly markers to chart
+- [ ] Create summary cards
+- [ ] Add anomalies table
+- [ ] Test chart performance with 90+ days data
+- [ ] Update documentation
+- [ ] Deploy to staging
 
 ---
 
-## 10. Future Enhancements (Phase 4)
+## 8. Success Metrics
 
-- **ARIMA forecasting**: Better accuracy with seasonality
-- **Prophet integration**: Facebook's time-series library
-- **ML-based anomaly detection**: Isolation Forest, LSTM autoencoders
-- **What-if scenarios**: "If usage doubles, cost = ?"
-- **Cost optimization suggestions**: "Switch to Model X to save 30%"
-- **Comparative benchmarks**: "You're spending 20% more than similar users"
+### Forecast Accuracy (after 30 days)
+- **Target**: <15% MAPE
+- **Measurement**: Compare forecasts to actual costs monthly
+
+### Anomaly Detection Quality
+- **Target**: <10% false positive rate
+- **Measurement**: User feedback + manual review
+
+### Performance
+- **Target**: <2s page load
+- **Measurement**: Chrome DevTools Performance tab
+
+### Adoption
+- **Target**: 70% of users view forecast
+- **Measurement**: Analytics on `/analytics` page views
 
 ---
 
-**Status**: ✅ Ready for Implementation  
-**Assigned To**: TBD  
-**Sprint**: 3.3 (Weeks 7-9)
+**Document Status**: ✅ Complete  
+**Ready for Implementation**: Yes  
+**Estimated Effort**: 2-3 weeks  
+**Dependencies**: scikit-learn library  
+**Risks**: Requires 14+ days historical data for accuracy
