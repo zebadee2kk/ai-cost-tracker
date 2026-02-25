@@ -51,6 +51,11 @@ export const getUsageHistory = (params) => api.get("/usage/history", { params })
 export const getUsageByService = () => api.get("/usage/by-service");
 export const getUsageForecast = () => api.get("/usage/forecast");
 
+// --- Manual Usage Entries ---
+export const createManualEntry = (data) => api.post("/usage/manual", data);
+export const updateManualEntry = (id, data) => api.put(`/usage/manual/${id}`, data);
+export const deleteManualEntry = (id) => api.delete(`/usage/manual/${id}`);
+
 // --- Alerts ---
 export const getAlerts = () => api.get("/alerts");
 export const createAlert = (data) => api.post("/alerts", data);

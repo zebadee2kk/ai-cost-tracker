@@ -132,22 +132,26 @@ def test_account(account_id):
     except ValueError as e:
         return jsonify({"error": str(e)}), 500
 
-    # Delegate to the appropriate service client
-    from services.openai_service import OpenAIService
-    from services.base_service import ServiceError
+    # Delegate to the appropriate service client via the registry
+    from services import get_service_client
+    from services.base_service import ServiceError, AuthenticationError
 
     service_name = account.service.name if account.service else ""
 
     try:
-        if service_name == "ChatGPT":
-            client = OpenAIService(plaintext_key)
-            valid = client.validate_credentials()
-        else:
-            return jsonify({"error": f"Connection test not yet implemented for {service_name}."}), 501
+        client = get_service_client(service_name, plaintext_key)
+    except ValueError:
+        return jsonify({"error": f"Connection test not yet implemented for {service_name}."}), 501
+    except AuthenticationError as exc:
+        return jsonify({"status": "failed", "message": str(exc)}), 400
 
+    try:
+        valid = client.validate_credentials()
         if valid:
             return jsonify({"status": "ok", "message": "Connection successful."}), 200
         return jsonify({"status": "failed", "message": "Invalid credentials."}), 400
 
+    except AuthenticationError as exc:
+        return jsonify({"status": "failed", "message": str(exc)}), 400
     except Exception as exc:
         return jsonify({"status": "error", "message": str(exc)}), 502

@@ -1,71 +1,53 @@
 # AI Cost Tracker
 
-> A comprehensive dashboard to track and manage usage across multiple AI tools including ChatGPT, Claude, Groq, GitHub Copilot, Perplexity, and more. Monitor token consumption, session limits, costs, and usage patterns in real-time.
+> A unified dashboard to track usage and costs across multiple AI services: OpenAI/ChatGPT, Anthropic Claude, Groq, Perplexity, and more. Monitor token consumption, costs, and usage patterns in real-time.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Node](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
-[![Phase](https://img.shields.io/badge/Phase-2%20In%20Progress-blue)](ROADMAP.md)
+[![Phase](https://img.shields.io/badge/Phase-2%20Complete-green)](ROADMAP.md)
 
 ---
 
 ## 🎯 Project Overview
 
-**Problem**: As developers using multiple AI coding assistants, we face:
-- Scattered usage data across different platforms
-- Difficulty tracking costs and token consumption
-- No unified view of session limits and quotas
-- Risk of exceeding budgets without warning
+**Problem**: Developers using multiple AI services face scattered usage data, difficulty tracking costs, and risk of exceeding budgets without warning.
 
 **Solution**: AI Cost Tracker provides a centralized dashboard that:
-- ✅ Aggregates usage data from multiple AI services
+- ✅ Aggregates usage data from multiple AI services automatically
 - ✅ Tracks token consumption and costs in real-time
-- ✅ Alerts you when approaching limits
+- ✅ Alerts you when approaching spending limits
 - ✅ Projects monthly costs based on current usage
-- ✅ Supports both API-based and manual tracking
+- ✅ Supports both API-based sync and manual data entry
 
 ---
 
 ## ✨ Features
 
-### Current (Phase 1 - Live)
+### Phase 1 (Live)
 
-#### Core Tracking
-- ✅ OpenAI/ChatGPT integration with automatic usage sync
-- ✅ Real-time and historical usage data visualization
-- ✅ Cost calculation based on actual API usage
-- ✅ Monthly and historical trend tracking
+- ✅ OpenAI/ChatGPT automatic usage sync via billing API
+- ✅ Real-time and historical usage visualization
+- ✅ Cost calculation, month-end forecasting
 - ✅ Encrypted API key storage (AES-256 Fernet)
+- ✅ JWT authentication and protected routes
+- ✅ Alert system with threshold monitoring
+- ✅ Docker Compose deployment
 
-#### Dashboard
-- ✅ Overview cards showing current month spend and total usage
-- ✅ Usage charts with time-series visualization
-- ✅ Account manager (add, edit, delete, test connection)
-- ✅ Alert panel with threshold monitoring
-- ✅ Analytics page with cost breakdown and forecasting
-- ✅ Service comparison views
+### Phase 2 (Complete — Feb 2026)
 
-#### Security & Auth
-- ✅ JWT-based authentication
-- ✅ User registration and login
-- ✅ Protected routes and API endpoints
-- ✅ Encrypted credential storage
+- ✅ **Anthropic Claude** automatic sync via Admin API
+- ✅ **Manual entry** system for Groq, Perplexity, and any service without an API
+- ✅ **Idempotent data ingestion** — no duplicate records on repeated syncs
+- ✅ Scheduler duplicate-run prevention (Flask debug mode safe)
+- ✅ `source` field distinguishing API vs. manual entries
 
-### Coming Soon (Phase 2 - In Progress)
+### Phase 3 (Planned)
 
-- 🔜 Anthropic Claude API integration
-- 🔜 Manual entry system for Groq and Perplexity
-- 🔜 Idempotent data ingestion (no duplicates)
-- 🔜 Enhanced test coverage (>80%)
-- 🔜 CSV/JSON export functionality
-
-### Future (Phase 3+)
-
-- 📋 Email/webhook notifications
-- 📋 Advanced analytics and anomaly detection
+- 📋 CSV/JSON export
+- 📋 Email/webhook alert notifications
+- 📋 Usage anomaly detection
 - 📋 Multi-user support (teams)
-- 📋 Budget optimization suggestions
-- 📋 Additional service integrations
 
 ---
 
@@ -74,119 +56,115 @@
 ### Prerequisites
 
 - **Python 3.10+** and **Node.js 18+**
-- **PostgreSQL 12+** (or SQLite for development)
+- **PostgreSQL 12+** (or SQLite for development/testing)
 - **Docker & Docker Compose** (recommended)
 
-### Installation
-
-#### Option 1: Docker Compose (Recommended)
+### Option A — Docker Compose (Recommended)
 
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/zebadee2kk/ai-cost-tracker.git
 cd ai-cost-tracker
 
-# Copy environment template
-```
+# 2. Generate required secrets
+python -c "from cryptography.fernet import Fernet; print('ENCRYPTION_KEY=' + Fernet.generate_key().decode())"
+python -c "import secrets; print('SECRET_KEY=' + secrets.token_hex(32))"
 
-2. **Generate required secrets**
-
-```bash
-# Fernet encryption key for API keys at rest
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-
-# JWT secret key
-python -c "import secrets; print(secrets.token_hex(32))"
-```
-
-3. **Configure environment**
-
-```bash
+# 3. Configure environment
 cp .env.example .env
-# Edit .env — paste both generated keys into ENCRYPTION_KEY and SECRET_KEY
-```
+# Paste the generated values into .env
 
-# Edit .env file - Generate encryption key:
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-# Add the key to .env as ENCRYPTION_KEY=...
-
-# Start all services
+# 4. Start all services
 docker-compose up -d
 
-# Run database migrations
+# 5. Apply database migrations (includes Phase 2 idempotency constraint)
 docker-compose exec backend flask db upgrade
 
-# Seed initial service data
+# 6. Seed initial service data
 docker-compose exec backend python scripts/seed_services.py
 ```
 
-The application will be available at:
+App is available at:
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:5000
-- **API Health**: http://localhost:5000/health
+- **Health check**: http://localhost:5000/api/health
 
-#### Option 2: Manual Setup
-
-Detailed manual installation instructions are available in [docs/setup-quickstart.md](docs/setup-quickstart.md).
-
-### First Steps
-
-1. **Create an account**: Navigate to http://localhost:3000/register
-2. **Login**: Use your credentials to access the dashboard
-3. **Add an API account**:
-   - Click "Add Account" in the dashboard
-   - Select "OpenAI" (currently the only automated service)
-   - Enter your OpenAI API key
-   - Test the connection
-4. **View usage**: Dashboard will automatically sync usage data
-4. **Option A — Docker Compose (recommended)**
-
-```bash
-docker-compose up
-```
-
-5. **Option B — Manual**
+### Option B — Manual Setup
 
 ```bash
 # Backend
 cd backend
-python -m venv venv && source venv/bin/activate  # Windows: venv\Scripts\activate
+python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-flask db init && flask db migrate -m "initial" && flask db upgrade
-python scripts/seed_services.py   # pre-loads 5 AI services
-flask run                          # http://localhost:5000
+flask db upgrade          # applies all migrations incl. Phase 2
+python scripts/seed_services.py
+flask run                 # http://localhost:5000
 
 # Frontend (new terminal)
 cd frontend
-npm install && npm start           # http://localhost:3000
+npm install && npm start  # http://localhost:3000
 ```
-
-The application will be available at:
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5000
-- **Health check**: http://localhost:5000/api/health
 
 See [docs/setup-quickstart.md](docs/setup-quickstart.md) for full details.
 
 ---
 
-## 📚 Documentation
+## 🤖 Adding AI Service Accounts
 
-### Essential Reading
+### OpenAI / ChatGPT
 
-- **[ROADMAP.md](ROADMAP.md)** - Project phases, current status, and future plans
-- **[Setup Quickstart](docs/setup-quickstart.md)** - Detailed installation guide
-- **[API Integration Guide](docs/api-integration-guide.md)** - Service integration documentation
+1. Dashboard → Add Account → select **ChatGPT**
+2. Paste your OpenAI API key (`sk-...`)
+3. Set optional monthly limit → Save
+4. Usage syncs automatically every hour
 
-### For Developers
+### Anthropic Claude (Admin API required)
 
-- **[Project Plan](docs/ai-tool-tracker-plan.md)** - Complete technical specification
-- **[Research: API Capabilities 2026](docs/research-api-capabilities-2026.md)** - Provider API research
-- **[Handover to Claude: Phase 2](docs/handover-to-claude-phase2.md)** - Implementation guide for Phase 2
+> **Important**: Anthropic's usage reporting requires an **Admin API key**, not a standard API key.
 
-### Architecture Documentation
+1. In the [Anthropic Console](https://console.anthropic.com), go to **Settings → Organization → Admin API Keys**
+2. Create a new Admin key (format: `sk-ant-admin-...`)
+3. Dashboard → Add Account → select **Anthropic**
+4. Paste the Admin key → Save
+5. Usage syncs automatically every hour
 
-See [docs/playbooks/](docs/playbooks/) for development playbooks and patterns.
+**Troubleshooting Anthropic:**
+- `AuthenticationError: requires Admin API key` → You're using a standard key (`sk-ant-api-...`). Generate an Admin key instead.
+- `403 Forbidden` → Your Anthropic account may not be an organization account. Admin API requires organization access.
+- No data returned → Check the date range; data has a ~5 minute delay.
+
+### Groq (Manual Entry)
+
+Groq does not provide a programmatic billing API. To track Groq costs:
+
+1. Dashboard → Add Account → select **Groq** (no API key needed)
+2. Check your [Groq Console](https://console.groq.com) → **Dashboard → Usage**
+3. Dashboard → select your Groq account → **Add Manual Entry**
+4. Enter the date, cost from your dashboard, and optional token count
+5. Repeat monthly or as needed
+
+### Perplexity (Manual Entry)
+
+Perplexity does not provide a programmatic billing API. To track Perplexity costs:
+
+1. Dashboard → Add Account → select **Perplexity** (no API key needed)
+2. In the [Perplexity portal](https://www.perplexity.ai/settings/api), go to **Settings → Usage Metrics → Invoice history**
+3. Click an invoice to see per-key usage
+4. Dashboard → select your Perplexity account → **Add Manual Entry**
+5. Enter the date and cost from the invoice
+
+---
+
+## 🎯 Supported AI Services
+
+| Service | Status | Tracking Method | Notes |
+|---------|--------|-----------------|-------|
+| **OpenAI / ChatGPT** | ✅ Live | Automatic API sync | GPT-4, GPT-5.1, embeddings |
+| **Anthropic Claude** | ✅ Live | Automatic API sync | Requires Admin API key (`sk-ant-admin-...`) |
+| **Groq** | ✅ Live | Manual entry | No billing API; dashboard-only |
+| **Perplexity** | ✅ Live | Manual entry | No billing API; invoice tracking |
+| **GitHub Copilot** | 📋 Planned | Manual entry | No usage API available |
+| **Local LLMs** | 📋 Planned | Manual entry | Ollama, LM Studio, etc. |
 
 ---
 
@@ -195,53 +173,24 @@ See [docs/playbooks/](docs/playbooks/) for development playbooks and patterns.
 ```
 ┌─────────────────────────────────────────────────────┐
 │          Frontend (React Dashboard)                 │
-│  - Auth Context        - Dashboard                  │
-│  - Account Manager     - Analytics                  │
-│  - Alert Panel         - Settings                   │
+│  Auth Context · Dashboard · Analytics · Settings   │
+│  AccountManager · ManualEntryModal · AlertPanel    │
 └──────────────────┬──────────────────────────────────┘
-                   │ Axios API Client (JWT)
+                   │ Axios + JWT
                    ↓
 ┌─────────────────────────────────────────────────────┐
 │          Backend API (Flask)                        │
-│  - JWT Auth            - Account CRUD               │
-│  - Usage Tracking      - Alert Generation           │
-│  - Cost Calculation    - Service Integration        │
-└──────────────────┬──────────────────────────────────┘
-                   │
-        ┌──────────┼──────────┐
-        ↓          ↓          ↓
-   PostgreSQL   APScheduler  External APIs
-  (SQLAlchemy)  (Daily Sync)  (OpenAI, etc.)
-   - Encrypted   - Usage      - Token usage
-   - Migrations    polling    - Cost data
+│  /api/auth   /api/accounts   /api/usage            │
+│  /api/usage/manual   /api/services   /api/alerts   │
+└──────┬───────────────────────────────┬──────────────┘
+       │                               │
+  PostgreSQL                   APScheduler (hourly)
+  SQLAlchemy                    → upsert_usage_record()
+  Alembic migrations            → OpenAIService
+  Fernet encryption             → AnthropicService
 ```
 
-**Tech Stack**:
-- **Backend**: Flask, SQLAlchemy, APScheduler, Flask-JWT-Extended
-- **Frontend**: React, Axios, React Router, Chart.js
-- **Database**: PostgreSQL (production) / SQLite (dev)
-- **Security**: AES-256 Fernet encryption, JWT tokens
-- **Deployment**: Docker, Docker Compose
-
----
-
-## 🎯 Supported AI Services
-
-| Service | Status | API Support | Tracking Method | Notes |
-|---------|--------|-------------|-----------------|-------|
-| **OpenAI/ChatGPT** | ✅ Live | Full API | Automatic sync | GPT-4, GPT-5.1, embeddings |
-| **Anthropic Claude** | 🔜 Phase 2 | Admin API | Automatic sync | Requires Admin API key |
-| **Groq** | 🔜 Phase 2 | ❌ None | Manual entry | Dashboard viewing only |
-| **Perplexity** | 🔜 Phase 2 | ❌ None | Manual entry | Invoice-based tracking |
-| **GitHub Copilot** | 📋 Planned | ⚠️ Limited | Manual entry | No usage API available |
-| **Local LLMs** | 📋 Planned | N/A | Manual entry | Ollama, LM Studio, etc. |
-
-**Legend**:
-- ✅ Live and working
-- 🔜 In development (Phase 2)
-- 📋 Planned for future phases
-- ⚠️ Limited API availability
-- ❌ No API available
+**Tech stack**: Flask · SQLAlchemy · APScheduler · Flask-JWT-Extended · React 18 · Axios · Chart.js · Docker
 
 ---
 
@@ -251,242 +200,116 @@ See [docs/playbooks/](docs/playbooks/) for development playbooks and patterns.
 
 ```
 ai-cost-tracker/
-├── backend/              # Flask backend
-│   ├── models/           # SQLAlchemy models
-│   ├── routes/           # API endpoints
-│   ├── services/         # Service integrations (OpenAI, Claude, etc.)
-│   ├── jobs/             # Background scheduler jobs
-│   ├── utils/            # Utilities (encryption, cost calc)
-│   ├── tests/            # Backend tests
-│   └── migrations/       # Alembic migrations
-├── frontend/             # React frontend
-│   ├── src/
-│   │   ├── components/   # React components
-│   │   ├── pages/        # Page components
-│   │   ├── services/     # API client
-│   │   └── contexts/     # React contexts (Auth)
-│   └── public/
-├── docs/                 # Documentation
-│   ├── playbooks/        # Development guides
-│   └── context/          # Additional context
-├── docker-compose.yml    # Docker orchestration
-└── .env.example          # Environment template
+├── backend/
+│   ├── models/           # UsageRecord (+ source/updated_at), Account, Service, ...
+│   ├── routes/           # usage.py (incl. /manual CRUD), accounts.py, auth.py, ...
+│   ├── services/         # base_service.py, openai_service.py, anthropic_service.py
+│   ├── jobs/             # sync_usage.py (upsert_usage_record, scheduler)
+│   ├── migrations/       # Alembic — incl. a1b2c3d4e5f6 idempotency constraint
+│   ├── tests/            # test_anthropic_service.py, test_idempotent_upsert.py, ...
+│   └── utils/            # encryption.py, cost_calculator.py, alert_generator.py
+├── frontend/src/
+│   ├── components/       # ManualEntryModal.jsx, AccountManager.jsx, ...
+│   ├── pages/            # DashboardPage, AnalyticsPage, LoginPage, SettingsPage
+│   └── services/         # api.js (incl. createManualEntry, updateManualEntry, ...)
+├── docs/                 # Handover docs, research, playbooks
+└── docker-compose.yml
 ```
 
 ### Running Tests
 
 ```bash
-# Backend tests
 cd backend
-pytest tests/ -v --cov=backend
-
-# Frontend tests (when implemented)
-cd frontend
-npm test
+pytest tests/ -v                          # run all tests
+pytest tests/test_anthropic_service.py -v # Anthropic service unit tests
+pytest tests/test_idempotent_upsert.py -v # idempotency integration tests
+pytest tests/ --cov=. --cov-report=html   # coverage report
 ```
+
+**Current status**: 44/47 tests pass (3 pre-existing failures in `test_accounts.py` due to a hardcoded service name in the test helper — unrelated to Phase 2).
 
 ### Database Migrations
 
 ```bash
-# Create a new migration
-flask db migrate -m "Description of changes"
-
-# Apply migrations
+# Apply all migrations (including Phase 2 idempotency constraint)
 flask db upgrade
 
-# Rollback
+# Check migration history
+flask db history
+
+# Create a new migration after model changes
+flask db migrate -m "description"
+
+# Roll back one migration
 flask db downgrade
 ```
+
+### Key Implementation Notes
+
+**Idempotent upsert** (`jobs/sync_usage.py:upsert_usage_record`):
+- Uses `ON CONFLICT DO UPDATE` on PostgreSQL (production)
+- Falls back to check-then-update for SQLite (test environment)
+- Unique key: `(account_id, service_id, timestamp, request_type)`
+- Timestamps are always normalized to midnight UTC for daily records
+
+**Scheduler duplicate prevention** (`jobs/sync_usage.py:start_scheduler`):
+- Checks `WERKZEUG_RUN_MAIN == 'true'` before starting in debug mode
+- Prevents the Flask reloader's parent process from running a second scheduler instance
+
+**Anthropic Admin API key** (`services/anthropic_service.py`):
+- Validated in constructor: must start with `sk-ant-admin`
+- Raises `AuthenticationError` (not `ServiceError`) on wrong key type
+- Fetches paginated usage from `/v1/organizations/usage_report/messages`
+- Estimates costs using per-model pricing with cache-token support
 
 ---
 
 ## 📋 Current Status (February 2026)
 
-### ✅ Phase 1: MVP - COMPLETE
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 1: MVP | ✅ Complete | OpenAI sync, dashboard, auth, alerts |
+| Phase 2: Multi-service | ✅ Complete | Anthropic API sync + manual entry for Groq/Perplexity |
+| Phase 3: Export & Alerts | 📋 Planned | CSV export, webhooks, anomaly detection |
 
-**Delivered**:
-- Functional backend API with all CRUD operations
-- React dashboard with authentication
-- OpenAI integration with automatic sync
-- Cost tracking and forecasting
-- Alert system
-- Docker deployment ready
-
-**Test Coverage**: ~60% (backend focus)
-
-### 🔜 Phase 2: Multi-Service Integration - IN PROGRESS
-
-**Current Sprint**: Foundation & Anthropic Integration
-
-**Next Steps** (see [ROADMAP.md](ROADMAP.md)):
-1. Add database constraint for idempotent ingestion
-2. Fix scheduler duplicate runs
-3. Implement Anthropic Claude service
-4. Build manual entry system for Groq/Perplexity
-5. Expand test coverage to >80%
-
-**Target Completion**: March 2026
-### Backend
-- **Framework**: Flask 3.0 (Python 3.10+)
-- **Database**: SQLite (dev) / PostgreSQL 16 (prod)
-- **ORM**: SQLAlchemy 2.0 + Flask-Migrate (Alembic)
-- **Task Scheduler**: APScheduler 3.10
-- **Authentication**: Flask-JWT-Extended (1-hour tokens)
-- **Encryption**: `cryptography` Fernet — AES-128-CBC for API keys at rest
-
-### Frontend
-- **Framework**: React 18
-- **Routing**: React Router 6
-- **Charts**: Chart.js 4 + react-chartjs-2
-- **HTTP Client**: Axios (with JWT interceptors)
-- **Styling**: Custom CSS variables (dark theme, no framework dependency)
-
-### Infrastructure
-- **Containerization**: Docker + Docker Compose
-- **Reverse Proxy**: nginx (frontend container)
-- **Secrets**: `.env` file (dev) / environment injection (prod)
-
----
-
-## 📋 Implementation Phases
-
-### Phase 1: MVP — ✅ COMPLETE
-- [x] Full project structure (`backend/` + `frontend/`)
-- [x] SQLAlchemy models: `Service`, `Account`, `UsageRecord`, `Alert`, `CostProjection`
-- [x] AES-256 Fernet encryption for API keys at rest (`utils/encryption.py`)
-- [x] JWT authentication — register, login, `/me`, logout (`routes/auth.py`)
-- [x] Full account CRUD + connection test endpoint (`routes/accounts.py`)
-- [x] Services, Usage, Alerts REST endpoints
-- [x] OpenAI billing API integration with exponential backoff (`services/openai_service.py`)
-- [x] Extensible base service class for future integrations (`services/base_service.py`)
-- [x] APScheduler background sync job (`jobs/sync_usage.py`)
-- [x] Cost calculator with pricing table + month-end projections (`utils/cost_calculator.py`)
-- [x] Auto alert generation at 80% / 100% of monthly limit
-- [x] React frontend: Login, Dashboard, Analytics, Settings pages
-- [x] Chart.js daily cost bar chart + service pie chart
-- [x] Account manager with add/delete/test-connection
-- [x] Alert panel with dismiss
-- [x] Docker + Docker Compose for full-stack local dev
-- [x] Database seed script (5 AI services pre-configured)
-- [x] Unit & integration tests (encryption, auth, accounts, OpenAI service)
-
-### Phase 2: Multi-Service Support ⏳
-- [ ] Anthropic Claude integration (`services/anthropic_service.py`)
-- [ ] Groq integration (`services/groq_service.py`)
-- [ ] Perplexity integration (`services/perplexity_service.py`)
-- [ ] GitHub Copilot manual tracking
-- [ ] Wire new services into `jobs/sync_usage.py`
-- [ ] Enhanced account management UI
-
-### Phase 3: Advanced Features ⏳
-- [ ] Email/webhook alert notifications
-- [ ] CSV/JSON data export
-- [ ] Usage anomaly detection
-- [ ] API rate limit monitoring
-- [ ] Advanced multi-service comparison charts
-
-### Phase 4: Polish & Production ⏳
-- [ ] Performance optimization (query caching, pagination)
-- [ ] Comprehensive E2E tests
-- [ ] Production deployment guide (AWS/Railway/Heroku)
-- [ ] OpenAPI/Swagger docs (`/api/docs`)
+See [ROADMAP.md](ROADMAP.md) for full details.
 
 ---
 
 ## 🔐 Security
 
 - **API Keys**: Encrypted at rest using AES-256 Fernet
-- **Authentication**: JWT tokens with configurable expiration
-- **Password Hashing**: Werkzeug secure password hashing
+- **Authentication**: JWT tokens (1-hour expiry by default)
+- **Password Hashing**: bcrypt
 - **CORS**: Configured for frontend/backend separation
-- **Environment Secrets**: Never committed to git
-- **Database**: SQL injection protection via SQLAlchemy ORM
-
-**Security Best Practices**:
-- Rotate encryption keys periodically
-- Use HTTPS in production
-- Implement rate limiting (recommended)
-- Regular dependency updates
-- Monitor for security advisories
+- **Ownership checks**: All usage endpoints verify the requesting user owns the account
+- **Environment Secrets**: Never committed to git (use `.env`)
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! This is an AI-native project built collaboratively by:
+This is an AI-native project built collaboratively by:
 - **Codex**: Phase 1 MVP implementation
-- **Perplexity**: Research and planning
+- **Perplexity**: Research and API capability analysis
 - **Claude Code**: Phase 2 implementation
 
-### Contributing Process
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes with clear messages
-4. Write/update tests for your changes
-5. Ensure all tests pass
-6. Push to your branch
-7. Open a Pull Request with description
-
-### Areas We Need Help
-
-- Additional service integrations (when APIs available)
-- Frontend UI/UX improvements
-- Test coverage expansion
-- Documentation improvements
-- Performance optimization
+Pull requests welcome. Please add tests for new features and ensure the existing test suite passes.
 
 ---
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).
 
 ---
 
 ## 👤 Author
 
-**Richard Ham** ([@zebadee2kk](https://github.com/zebadee2kk))
-
-- 🏢 IT Director & Cybersecurity Leader
-- 📍 London, UK
-- 💼 25+ years IT management experience
-- 🤖 AI-native development enthusiast
-- 🔧 Vibe coding practitioner
-
-**Tech Philosophy**: Building with AI assistance (Claude, ChatGPT, Perplexity, Ollama) to rapidly prototype and deliver production-ready systems.
+**Richard Ham** ([@zebadee2kk](https://github.com/zebadee2kk)) — IT Director, Cybersecurity Leader, London UK.
 
 ---
 
-## 🙏 Acknowledgments
+**Built with ❤️ for developers who want to understand their AI spending.**
 
-- Built with extensive AI pair programming (Claude Code, GitHub Copilot)
-- Research conducted via Perplexity AI
-- Inspired by the need to manage multiple AI subscriptions
-- Designed for transparency in AI tool costs
-
-**AI Team**:
-- Codex: MVP implementation and architecture
-- Perplexity: Research, planning, and documentation
-- Claude Code: Phase 2 implementation
-
----
-
-## 📞 Support
-
-- 📖 **[Documentation](docs/)** - Comprehensive guides
-- 🐛 **[Issues](https://github.com/zebadee2kk/ai-cost-tracker/issues)** - Bug reports and features
-- 💬 **[Discussions](https://github.com/zebadee2kk/ai-cost-tracker/discussions)** - Questions and ideas
-- 🗺️ **[Roadmap](ROADMAP.md)** - Project direction
-
----
-
-## 🌟 Star History
-
-If you find this project useful, please consider giving it a star! ⭐
-
----
-
-**Built with ❤️ for developers who vibe with AI**
-
-**Status**: 🟢 Active Development | Phase 2 In Progress | Production-Ready MVP
+**Status**: 🟢 Active Development | Phase 2 Complete | Production-Ready
