@@ -1,13 +1,13 @@
 # AI Cost Tracker
 
-> A unified dashboard to track usage and costs across multiple AI services: OpenAI/ChatGPT, Anthropic Claude, Groq, Perplexity, and more. Monitor token consumption, costs, and usage patterns in real-time.
+> A unified dashboard to track usage and costs across multiple AI services: OpenAI/ChatGPT, Anthropic Claude, Groq, Perplexity, and more. Monitor token consumption, costs, and usage patterns in real-time with automated alerts.
 
 [![CI/CD](https://github.com/zebadee2kk/ai-cost-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/zebadee2kk/ai-cost-tracker/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/zebadee2kk/ai-cost-tracker/branch/main/graph/badge.svg)](https://codecov.io/gh/zebadee2kk/ai-cost-tracker)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Node](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
-[![Phase](https://img.shields.io/badge/Phase-3%20In%20Progress-blue)](ROADMAP.md)
+[![Phase](https://img.shields.io/badge/Phase-3%20Active-brightgreen)](docs/phase3-roadmap.md)
 
 ---
 
@@ -18,15 +18,17 @@
 **Solution**: AI Cost Tracker provides a centralized dashboard that:
 - ✅ Aggregates usage data from multiple AI services automatically
 - ✅ Tracks token consumption and costs in real-time
-- ✅ Alerts you when approaching spending limits
+- ✅ Alerts you when approaching spending limits via email and Slack
 - ✅ Projects monthly costs based on current usage
+- ✅ Exports data in CSV/JSON formats
 - ✅ Supports both API-based sync and manual data entry
+- ✅ Provides visual indicators to distinguish API vs manual entries
 
 ---
 
 ## ✨ Features
 
-### Phase 1 (Live)
+### Phase 1 (Complete — Dec 2025)
 
 - ✅ OpenAI/ChatGPT automatic usage sync via billing API
 - ✅ Real-time and historical usage visualization
@@ -44,12 +46,31 @@
 - ✅ Scheduler duplicate-run prevention (Flask debug mode safe)
 - ✅ `source` field distinguishing API vs. manual entries
 
-### Phase 3 (Planned)
+### Phase 3 (In Progress — Feb 2026)
 
-- 📋 CSV/JSON export
-- 📋 Email/webhook alert notifications
-- 📋 Usage anomaly detection
-- 📋 Multi-user support (teams)
+#### ✅ Sprint 1 — Data Export & Visualization (Complete)
+- ✅ **CSV/JSON Export**: Streaming endpoint with date/service/account filtering
+- ✅ **Visual Source Indicators**: Color-coded badges and chart styling for API vs Manual data
+- ✅ **Source Filtering**: Toggle between All/API Only/Manual Only views
+
+#### ✅ Sprint 2 Week 1 — Notification Foundation (Complete)
+- ✅ **Database Models**: notification_preferences, notification_queue, notification_history
+- ✅ **Email Notifications**: SendGrid integration with HTML templates (budget/anomaly/system alerts)
+- ✅ **Slack Notifications**: Webhook support with Block Kit formatting
+- ✅ **Rate Limiting**: Per-user, per-channel hourly and daily limits (10/hour email, 20/hour Slack)
+- ✅ **CI/CD Pipeline**: GitHub Actions with automated testing, security scanning, Docker builds
+
+#### 🔨 Sprint 2 Week 2 — Notification API & Integration (In Progress)
+- 📋 Notification REST endpoints (CRUD for preferences, queue management)
+- 📋 Scheduled notification processor (cron job)
+- 📋 Alert trigger integration (budget thresholds, anomaly detection)
+- 📋 User notification settings UI
+
+#### 📋 Sprint 3 — Advanced Analytics (Planned)
+- 📋 Cost anomaly detection with ML models
+- 📋 Usage trend analysis and forecasting
+- 📋 Multi-user support with team dashboards
+- 📋 Custom report scheduling
 
 ---
 
@@ -74,12 +95,15 @@ python -c "import secrets; print('SECRET_KEY=' + secrets.token_hex(32))"
 
 # 3. Configure environment
 cp .env.example .env
-# Paste the generated values into .env
+# Edit .env and add:
+# - Generated ENCRYPTION_KEY and SECRET_KEY
+# - SENDGRID_API_KEY (for email notifications)
+# - SLACK_WEBHOOK_URL (for Slack notifications)
 
 # 4. Start all services
 docker-compose up -d
 
-# 5. Apply database migrations (includes Phase 2 idempotency constraint)
+# 5. Apply database migrations (includes Phase 3 notification tables)
 docker-compose exec backend flask db upgrade
 
 # 6. Seed initial service data
@@ -98,7 +122,7 @@ App is available at:
 cd backend
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-flask db upgrade          # applies all migrations incl. Phase 2
+flask db upgrade          # applies all migrations incl. Phase 3
 python scripts/seed_services.py
 flask run                 # http://localhost:5000
 
@@ -157,6 +181,51 @@ Perplexity does not provide a programmatic billing API. To track Perplexity cost
 
 ---
 
+## 📊 Data Export
+
+Export your usage data for external analysis:
+
+1. Navigate to **Dashboard → History** tab
+2. Select **Export** format (CSV or JSON)
+3. Filter by date range, service, account, or data source (API/Manual)
+4. Click **Download** — file streams directly to your browser
+
+**Features:**
+- Streaming downloads (handles large datasets efficiently)
+- UTF-8 BOM for Excel compatibility (CSV)
+- Comprehensive metadata (service, account, source, timestamps)
+
+---
+
+## 🔔 Notification Settings
+
+Configure alerts to stay informed about your AI spending:
+
+### Email Notifications (SendGrid)
+
+1. Add `SENDGRID_API_KEY` to your `.env` file
+2. Configure sender: `SENDGRID_FROM_EMAIL` and `SENDGRID_FROM_NAME`
+3. Dashboard → Settings → Notifications → Enable Email
+4. Set alert thresholds (budget warnings, anomaly detection)
+
+### Slack Notifications
+
+1. Create an [Incoming Webhook](https://api.slack.com/messaging/webhooks) in your Slack workspace
+2. Add `SLACK_WEBHOOK_URL` to your `.env` file
+3. Dashboard → Settings → Notifications → Enable Slack
+4. Alerts post to your configured channel with interactive buttons
+
+**Alert Types:**
+- **Budget Alerts**: Warning (70%), Critical (90%), Emergency (100%)
+- **Anomaly Alerts**: Unusual spending patterns detected
+- **System Alerts**: Sync failures, integration errors
+
+**Rate Limits (configurable):**
+- Email: 10/hour, 50/day per user
+- Slack: 20/hour, 100/day per user
+
+---
+
 ## 🎯 Supported AI Services
 
 | Service | Status | Tracking Method | Notes |
@@ -175,24 +244,34 @@ Perplexity does not provide a programmatic billing API. To track Perplexity cost
 ```
 ┌─────────────────────────────────────────────────────┐
 │          Frontend (React Dashboard)                 │
-│  Auth Context · Dashboard · Analytics · Settings   │
-│  AccountManager · ManualEntryModal · AlertPanel    │
+│  Auth · Dashboard · Analytics · Settings           │
+│  Export · Notifications · Source Filtering         │
 └──────────────────┬──────────────────────────────────┘
                    │ Axios + JWT
                    ↓
 ┌─────────────────────────────────────────────────────┐
 │          Backend API (Flask)                        │
 │  /api/auth   /api/accounts   /api/usage            │
-│  /api/usage/manual   /api/services   /api/alerts   │
-└──────┬───────────────────────────────┬──────────────┘
-       │                               │
+│  /api/usage/manual   /api/usage/export             │
+│  /api/services   /api/alerts                       │
+│  /api/notifications (upcoming)                     │
+└──────┬──────────────────────────────┬───────────────┘
+       │                              │
   PostgreSQL                   APScheduler (hourly)
-  SQLAlchemy                    → upsert_usage_record()
-  Alembic migrations            → OpenAIService
-  Fernet encryption             → AnthropicService
+  + notification tables         → sync_usage_job
+  + rate limiting               → notification_processor
+  SQLAlchemy ORM                → OpenAIService
+  Alembic migrations            → AnthropicService
+  Fernet encryption             → EmailSender
+                                → SlackSender
 ```
 
-**Tech stack**: Flask · SQLAlchemy · APScheduler · Flask-JWT-Extended · React 18 · Axios · Chart.js · Docker
+**Tech Stack:**
+- **Backend**: Flask · SQLAlchemy · APScheduler · Flask-JWT-Extended · SendGrid · Requests
+- **Frontend**: React 18 · Axios · Chart.js · React Router
+- **Database**: PostgreSQL (production) · SQLite (testing)
+- **CI/CD**: GitHub Actions · Codecov · Trivy · Bandit · Docker Hub
+- **Deployment**: Docker · Docker Compose
 
 ---
 
@@ -203,18 +282,26 @@ Perplexity does not provide a programmatic billing API. To track Perplexity cost
 ```
 ai-cost-tracker/
 ├── backend/
-│   ├── models/           # UsageRecord (+ source/updated_at), Account, Service, ...
-│   ├── routes/           # usage.py (incl. /manual CRUD), accounts.py, auth.py, ...
-│   ├── services/         # base_service.py, openai_service.py, anthropic_service.py
-│   ├── jobs/             # sync_usage.py (upsert_usage_record, scheduler)
-│   ├── migrations/       # Alembic — incl. a1b2c3d4e5f6 idempotency constraint
-│   ├── tests/            # test_anthropic_service.py, test_idempotent_upsert.py, ...
-│   └── utils/            # encryption.py, cost_calculator.py, alert_generator.py
+│   ├── models/           # User, Account, Service, UsageRecord, Notification*
+│   ├── routes/           # auth, accounts, usage, services, alerts
+│   ├── services/
+│   │   ├── api/          # openai_service, anthropic_service
+│   │   └── notifications/ # email_sender, slack_sender, rate_limiter
+│   ├── jobs/             # sync_usage, notification_processor
+│   ├── migrations/       # Alembic (Phase 1-3 schemas)
+│   ├── tests/            # 46+ passing tests
+│   └── utils/            # encryption, cost_calculator, alert_generator
 ├── frontend/src/
-│   ├── components/       # ManualEntryModal.jsx, AccountManager.jsx, ...
-│   ├── pages/            # DashboardPage, AnalyticsPage, LoginPage, SettingsPage
-│   └── services/         # api.js (incl. createManualEntry, updateManualEntry, ...)
-├── docs/                 # Handover docs, research, playbooks
+│   ├── components/       # ExportButton, SourceBadge, SourceFilter, Modals
+│   ├── pages/            # Dashboard, Analytics, Login, Settings
+│   └── services/         # api.js (HTTP client)
+├── docs/
+│   ├── phase3-roadmap.md          # Full Phase 3 plan
+│   ├── phase3-status.md           # Sprint tracking
+│   ├── phase3-ci-guide.md         # CI/CD documentation
+│   └── phase3-notifications-spec.md # Notification system spec
+├── .github/workflows/
+│   └── ci.yml            # Automated testing, security, Docker builds
 └── docker-compose.yml
 ```
 
@@ -222,18 +309,32 @@ ai-cost-tracker/
 
 ```bash
 cd backend
-pytest tests/ -v                          # run all tests
-pytest tests/test_anthropic_service.py -v # Anthropic service unit tests
-pytest tests/test_idempotent_upsert.py -v # idempotency integration tests
-pytest tests/ --cov=. --cov-report=html   # coverage report
+
+# Run all tests
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=. --cov-report=html
+
+# Run specific test suites
+pytest tests/test_export.py -v              # Export endpoints
+pytest tests/test_email_sender.py -v        # Email notifications
+pytest tests/test_slack_sender.py -v        # Slack notifications
+pytest tests/test_anthropic_service.py -v   # Anthropic sync
+pytest tests/test_idempotent_upsert.py -v   # Data integrity
 ```
 
-**Current status**: 44/47 tests pass (3 pre-existing failures in `test_accounts.py` due to a hardcoded service name in the test helper — unrelated to Phase 2).
+**Frontend tests:**
+```bash
+cd frontend
+npm test                    # Run all Jest tests
+npm test -- --coverage      # With coverage report
+```
 
 ### Database Migrations
 
 ```bash
-# Apply all migrations (including Phase 2 idempotency constraint)
+# Apply all migrations (includes Phase 3 notification tables)
 flask db upgrade
 
 # Check migration history
@@ -246,35 +347,71 @@ flask db migrate -m "description"
 flask db downgrade
 ```
 
+### CI/CD Pipeline
+
+Every push triggers:
+1. **Backend Tests**: pytest with PostgreSQL service, 80% coverage threshold
+2. **Frontend Tests**: Jest with 70% coverage threshold
+3. **Security Scans**: Bandit (Python), npm audit (JS), Trivy (Docker)
+4. **Coverage Upload**: Results sent to Codecov
+5. **Docker Builds**: Images pushed to Docker Hub (main branch only)
+
+**Required Secrets** (GitHub repository settings):
+- `CODECOV_TOKEN`: Coverage reporting
+- `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`: Image publishing
+- `SLACK_WEBHOOK_URL`: CI failure notifications (optional)
+
 ### Key Implementation Notes
 
-**Idempotent upsert** (`jobs/sync_usage.py:upsert_usage_record`):
-- Uses `ON CONFLICT DO UPDATE` on PostgreSQL (production)
-- Falls back to check-then-update for SQLite (test environment)
-- Unique key: `(account_id, service_id, timestamp, request_type)`
-- Timestamps are always normalized to midnight UTC for daily records
+**Idempotent Upsert** (`jobs/sync_usage.py`):
+- Uses `ON CONFLICT DO UPDATE` on PostgreSQL
+- Unique constraint: `(account_id, service_id, timestamp, request_type)`
+- Timestamps normalized to midnight UTC for daily records
+- Prevents duplicate data on repeated syncs
 
-**Scheduler duplicate prevention** (`jobs/sync_usage.py:start_scheduler`):
-- Checks `WERKZEUG_RUN_MAIN == 'true'` before starting in debug mode
-- Prevents the Flask reloader's parent process from running a second scheduler instance
+**Notification Rate Limiting** (`services/notifications/rate_limiter.py`):
+- Per-user, per-channel limits enforced via `notification_history` table
+- Configurable hourly/daily thresholds in `.env`
+- `get_remaining()` method for UI quota displays
 
-**Anthropic Admin API key** (`services/anthropic_service.py`):
-- Validated in constructor: must start with `sk-ant-admin`
-- Raises `AuthenticationError` (not `ServiceError`) on wrong key type
-- Fetches paginated usage from `/v1/organizations/usage_report/messages`
-- Estimates costs using per-model pricing with cache-token support
+**Export Streaming** (`routes/usage.py`):
+- Generator pattern with `yield_per(500)` cursor
+- X-Accel-Buffering header for nginx compatibility
+- Handles datasets of any size without memory issues
 
 ---
 
-## 📋 Current Status (February 2026)
+## 📋 Current Status (February 25, 2026)
 
-| Phase | Status | Notes |
-|-------|--------|-------|
-| Phase 1: MVP | ✅ Complete | OpenAI sync, dashboard, auth, alerts |
-| Phase 2: Multi-service | ✅ Complete | Anthropic API sync + manual entry for Groq/Perplexity |
-| Phase 3: Export & Alerts | 📋 Planned | CSV export, webhooks, anomaly detection |
+| Phase | Status | Completion | Notes |
+|-------|--------|------------|-------|
+| Phase 1: MVP | ✅ Complete | 100% | OpenAI sync, dashboard, auth, alerts |
+| Phase 2: Multi-service | ✅ Complete | 100% | Anthropic API + manual entry system |
+| Phase 3: Export & Alerts | 🔨 Active | 60% | Export ✅, Notifications foundation ✅, API integration 🔨 |
 
-See [ROADMAP.md](ROADMAP.md) for full details.
+**Recent Milestones:**
+- **Feb 25, 2026** — Sprint 2 Week 1 complete: Notification system foundation (email, Slack, rate limiting, CI/CD)
+- **Feb 25, 2026** — Sprint 1 complete: CSV/JSON export, visual source indicators
+- **Feb 2026** — Phase 2 complete: Anthropic Claude integration, manual entry system
+
+**Next Up (Sprint 2 Week 2):**
+- Notification REST API endpoints
+- Scheduled notification processor
+- Alert trigger integration
+- User notification settings UI
+
+See [docs/phase3-roadmap.md](docs/phase3-roadmap.md) for the full roadmap and [docs/phase3-status.md](docs/phase3-status.md) for live progress tracking.
+
+---
+
+## 📚 Documentation
+
+- [Phase 3 Roadmap](docs/phase3-roadmap.md) — Feature specifications and timeline
+- [Phase 3 Status](docs/phase3-status.md) — Sprint progress and blockers
+- [CI/CD Guide](docs/phase3-ci-guide.md) — Testing, security, deployment
+- [Notification Spec](docs/phase3-notifications-spec.md) — Alert system architecture
+- [Codex Handover](docs/handover-to-codex-code-review-testing.md) — PR review checklist
+- [Setup Quickstart](docs/setup-quickstart.md) — Installation and configuration
 
 ---
 
@@ -284,34 +421,98 @@ See [ROADMAP.md](ROADMAP.md) for full details.
 - **Authentication**: JWT tokens (1-hour expiry by default)
 - **Password Hashing**: bcrypt
 - **CORS**: Configured for frontend/backend separation
-- **Ownership checks**: All usage endpoints verify the requesting user owns the account
+- **Ownership Checks**: All endpoints verify user permissions
+- **Security Scanning**: Automated Bandit + npm audit in CI/CD
+- **Dependency Updates**: Trivy scans for vulnerable packages
 - **Environment Secrets**: Never committed to git (use `.env`)
+
+**Vulnerability Disclosure**: Please report security issues to the repository owner privately.
 
 ---
 
 ## 🤝 Contributing
 
-This is an AI-native project built collaboratively by:
-- **Codex**: Phase 1 MVP implementation
-- **Perplexity**: Research and API capability analysis
-- **Claude Code**: Phase 2 implementation
+This is an **AI-native project** built collaboratively by multiple AI agents:
 
-Pull requests welcome. Please add tests for new features and ensure the existing test suite passes.
+| Agent | Role | Contributions |
+|-------|------|---------------|
+| **Codex** (ChatGPT) | Initial Implementation | Phase 1 MVP, Phase 2 multi-service support |
+| **Perplexity** | Research & Planning | API analysis, roadmap planning, documentation |
+| **Claude Code** | Feature Development | Phase 3 export system, notification foundation, CI/CD pipeline |
+| **Codex** | Quality Assurance | PR reviews, testing, documentation |
+
+**Human oversight**: Richard Ham ([@zebadee2kk](https://github.com/zebadee2kk)) — Project management and architecture decisions
+
+### How to Contribute
+
+Pull requests welcome! Please:
+1. Add tests for new features (pytest for backend, Jest for frontend)
+2. Ensure existing test suite passes (`pytest tests/` and `npm test`)
+3. Update documentation in `docs/` for significant changes
+4. Follow the existing code style (Black for Python, ESLint for JavaScript)
+5. Add yourself to the contributors list in this README
+
+---
+
+## 🗺️ Roadmap
+
+### ✅ Phase 1 — MVP (Complete)
+OpenAI integration, core dashboard, authentication, basic alerts
+
+### ✅ Phase 2 — Multi-Service (Complete)
+Anthropic Claude, manual entry system, idempotent data sync
+
+### 🔨 Phase 3 — Export & Advanced Alerts (60% Complete)
+- ✅ CSV/JSON export with streaming
+- ✅ Visual source indicators
+- ✅ Notification infrastructure (email, Slack, rate limiting)
+- ✅ CI/CD pipeline with automated testing
+- 🔨 Notification API and UI (in progress)
+- 📋 Scheduled notification processor
+- 📋 Alert trigger integration
+
+### 📋 Phase 4 — Analytics & Teams (Planned)
+- Cost anomaly detection with ML
+- Usage trend forecasting
+- Multi-user support with role-based access
+- Team dashboards and shared accounts
+- Custom report scheduling
+- Webhook notifications for third-party integrations
+
+See [docs/phase3-roadmap.md](docs/phase3-roadmap.md) for detailed specifications.
 
 ---
 
 ## 📝 License
 
-MIT — see [LICENSE](LICENSE).
+MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
 ## 👤 Author
 
-**Richard Ham** ([@zebadee2kk](https://github.com/zebadee2kk)) — IT Director, Cybersecurity Leader, London UK.
+**Richard Ham** ([@zebadee2kk](https://github.com/zebadee2kk))  
+IT Director | Cybersecurity Leader | London, UK
+
+**Connect:**
+- GitHub: [@zebadee2kk](https://github.com/zebadee2kk)
+- LinkedIn: [Richard Ham](https://www.linkedin.com/in/richard-ham/)
 
 ---
 
-**Built with ❤️ for developers who want to understand their AI spending.**
+## 🙏 Acknowledgments
 
-**Status**: 🟢 Active Development | Phase 2 Complete | Production-Ready
+- **OpenAI** for the ChatGPT API and GPT models
+- **Anthropic** for Claude AI and usage reporting APIs
+- **SendGrid** for reliable email delivery infrastructure
+- **Slack** for webhook-based notification support
+- **Codecov** for test coverage reporting
+- The open-source community for the excellent tools that power this project
+
+---
+
+**Built with ❤️ for developers who want to understand and control their AI spending.**
+
+**Status**: 🟢 Active Development | Phase 3 Sprint 2 | Production-Ready
+
+**Last Updated**: February 25, 2026
