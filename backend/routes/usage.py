@@ -1,6 +1,9 @@
 from datetime import datetime, timezone, timedelta
+import csv
+import json
+from io import StringIO
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, Response, stream_with_context
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import func
 
@@ -338,3 +341,206 @@ def delete_manual_entry(entry_id):
     db.session.commit()
 
     return jsonify({"message": "Entry deleted"}), 200
+
+
+# ---------------------------------------------------------------------------
+# Export helpers
+# ---------------------------------------------------------------------------
+
+def _build_export_query(user_id, start_date, end_date, service_id, account_id, source):
+    """Build a SQLAlchemy query for export with the supplied filters."""
+    from models.service import Service
+
+    account_ids = _user_account_ids(user_id)
+
+    query = (
+        UsageRecord.query
+        .filter(UsageRecord.account_id.in_(account_ids))
+        .order_by(UsageRecord.timestamp.asc())
+    )
+
+    if account_id:
+        query = query.filter(UsageRecord.account_id == account_id)
+    if service_id:
+        query = query.filter(UsageRecord.service_id == service_id)
+    if start_date:
+        query = query.filter(UsageRecord.timestamp >= start_date)
+    if end_date:
+        # Include the whole end_date day
+        query = query.filter(UsageRecord.timestamp <= end_date + " 23:59:59")
+    if source and source != "all":
+        query = query.filter(UsageRecord.source == source)
+
+    return query
+
+
+def _generate_csv(user_id, start_date, end_date, service_id, account_id, source):
+    """Yield CSV chunks for streaming.  UTF-8 BOM for Excel compatibility."""
+    buf = StringIO()
+    writer = csv.writer(buf)
+
+    # BOM
+    yield "\ufeff"
+
+    # Header row
+    writer.writerow(["Date", "Service", "Account", "Request Type", "Tokens", "Cost (USD)", "Data Source", "Notes"])
+    yield buf.getvalue()
+    buf.seek(0)
+    buf.truncate(0)
+
+    query = _build_export_query(user_id, start_date, end_date, service_id, account_id, source)
+
+    total_cost = 0.0
+    record_count = 0
+
+    for record in query.yield_per(500):
+        notes = (record.extra_data or {}).get("notes", "") if record.source == "manual" else ""
+        writer.writerow([
+            record.timestamp.strftime("%Y-%m-%d") if record.timestamp else "",
+            record.service.name if record.service else "",
+            record.account.account_name if record.account else "",
+            record.request_type or "",
+            record.tokens_used if record.tokens_used else "",
+            f"{float(record.cost):.4f}" if record.cost is not None else "0.0000",
+            record.source or "api",
+            notes,
+        ])
+        total_cost += float(record.cost or 0)
+        record_count += 1
+
+        yield buf.getvalue()
+        buf.seek(0)
+        buf.truncate(0)
+
+    # Metadata footer
+    writer.writerow([])
+    writer.writerow(["# Export Metadata"])
+    writer.writerow(["# Generated", datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")])
+    writer.writerow(["# Total Records", record_count])
+    writer.writerow(["# Total Cost (USD)", f"{total_cost:.4f}"])
+    yield buf.getvalue()
+
+
+def _generate_json(user_id, start_date, end_date, service_id, account_id, source):
+    """Yield JSON chunks for streaming."""
+    metadata = {
+        "generated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "date_range": {"start": start_date, "end": end_date},
+        "filters": {
+            "service_id": service_id,
+            "account_id": account_id,
+            "source": source,
+        },
+    }
+
+    yield '{\n  "export_metadata": '
+    yield json.dumps(metadata, indent=2)
+    yield ',\n  "records": [\n'
+
+    query = _build_export_query(user_id, start_date, end_date, service_id, account_id, source)
+
+    first = True
+    for record in query.yield_per(500):
+        if not first:
+            yield ",\n"
+        first = False
+
+        notes = (record.extra_data or {}).get("notes") if record.source == "manual" else None
+        record_dict = {
+            "date": record.timestamp.strftime("%Y-%m-%d") if record.timestamp else None,
+            "service": record.service.name if record.service else None,
+            "account": record.account.account_name if record.account else None,
+            "request_type": record.request_type,
+            "tokens": record.tokens_used,
+            "cost_usd": float(record.cost) if record.cost is not None else 0.0,
+            "data_source": record.source or "api",
+            "notes": notes,
+            "metadata": record.extra_data or {},
+        }
+        yield "    " + json.dumps(record_dict)
+
+    yield "\n  ]\n}"
+
+
+@usage_bp.route("/export", methods=["GET"])
+@jwt_required()
+def export_usage():
+    """Stream usage records as CSV or JSON.
+
+    Query parameters:
+        format      csv | json  (default: csv)
+        start_date  YYYY-MM-DD
+        end_date    YYYY-MM-DD
+        service_id  integer
+        account_id  integer
+        source      api | manual | all (default: all)
+    """
+    user_id = int(get_jwt_identity())
+
+    format_type = request.args.get("format", "csv").lower()
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+    service_id = request.args.get("service_id", type=int)
+    account_id = request.args.get("account_id", type=int)
+    source = request.args.get("source", "all").lower()
+
+    # Validate format
+    if format_type not in ("csv", "json"):
+        return jsonify({
+            "error": "Invalid format",
+            "message": "format must be 'csv' or 'json'",
+            "code": "INVALID_FORMAT",
+        }), 400
+
+    # Validate source
+    if source not in ("api", "manual", "all"):
+        return jsonify({
+            "error": "Invalid source",
+            "message": "source must be 'api', 'manual', or 'all'",
+            "code": "INVALID_SOURCE",
+        }), 400
+
+    # Validate date formats
+    for param_name, param_value in [("start_date", start_date), ("end_date", end_date)]:
+        if param_value:
+            try:
+                datetime.strptime(param_value, "%Y-%m-%d")
+            except ValueError:
+                return jsonify({
+                    "error": "Invalid date format",
+                    "message": f"{param_name} must be in YYYY-MM-DD format",
+                    "code": "INVALID_DATE_FORMAT",
+                }), 400
+
+    # Verify account ownership
+    if account_id:
+        account = Account.query.filter_by(id=account_id, user_id=user_id).first()
+        if not account:
+            return jsonify({"error": "Forbidden", "code": "FORBIDDEN"}), 403
+
+    timestamp = datetime.utcnow().strftime("%Y-%m-%d")
+    filename = f"usage_export_{timestamp}.{format_type}"
+
+    if format_type == "csv":
+        return Response(
+            stream_with_context(
+                _generate_csv(user_id, start_date, end_date, service_id, account_id, source)
+            ),
+            mimetype="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    # JSON
+    return Response(
+        stream_with_context(
+            _generate_json(user_id, start_date, end_date, service_id, account_id, source)
+        ),
+        mimetype="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Accel-Buffering": "no",
+        },
+    )

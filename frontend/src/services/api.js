@@ -50,6 +50,8 @@ export const getCurrentUsage = () => api.get("/usage");
 export const getUsageHistory = (params) => api.get("/usage/history", { params });
 export const getUsageByService = () => api.get("/usage/by-service");
 export const getUsageForecast = () => api.get("/usage/forecast");
+export const exportUsage = (params) =>
+  api.get("/usage/export", { params, responseType: "blob" });
 
 // --- Manual Usage Entries ---
 export const createManualEntry = (data) => api.post("/usage/manual", data);
