@@ -67,26 +67,51 @@ git clone https://github.com/zebadee2kk/ai-cost-tracker.git
 cd ai-cost-tracker
 ```
 
-2. **Using Docker Compose (Recommended)**
+2. **Generate required secrets**
 
 ```bash
-# Copy environment template
+# Fernet encryption key for API keys at rest
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+# JWT secret key
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+3. **Configure environment**
+
+```bash
 cp .env.example .env
+# Edit .env — paste both generated keys into ENCRYPTION_KEY and SECRET_KEY
+```
 
-# Edit .env with your settings
-# Generate encryption keys as described in docs/setup-quickstart.md
+4. **Option A — Docker Compose (recommended)**
 
-# Start all services
+```bash
 docker-compose up
 ```
 
+5. **Option B — Manual**
+
+```bash
+# Backend
+cd backend
+python -m venv venv && source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+flask db init && flask db migrate -m "initial" && flask db upgrade
+python scripts/seed_services.py   # pre-loads 5 AI services
+flask run                          # http://localhost:5000
+
+# Frontend (new terminal)
+cd frontend
+npm install && npm start           # http://localhost:3000
+```
+
 The application will be available at:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:5000
+- **Health check**: http://localhost:5000/api/health
 
-3. **Manual Setup**
-
-See [docs/setup-quickstart.md](docs/setup-quickstart.md) for detailed manual installation instructions.
+See [docs/setup-quickstart.md](docs/setup-quickstart.md) for full details.
 
 ---
 
@@ -177,52 +202,69 @@ This repository is structured to be picked up by Claude Code for implementation.
 ## 🛠️ Tech Stack
 
 ### Backend
-- **Framework**: Flask (Python) or Express.js (Node.js)
-- **Database**: PostgreSQL / SQLite
-- **ORM**: SQLAlchemy / Sequelize
-- **Task Scheduler**: APScheduler / node-cron
-- **Authentication**: JWT
+- **Framework**: Flask 3.0 (Python 3.10+)
+- **Database**: SQLite (dev) / PostgreSQL 16 (prod)
+- **ORM**: SQLAlchemy 2.0 + Flask-Migrate (Alembic)
+- **Task Scheduler**: APScheduler 3.10
+- **Authentication**: Flask-JWT-Extended (1-hour tokens)
+- **Encryption**: `cryptography` Fernet — AES-128-CBC for API keys at rest
 
 ### Frontend
-- **Framework**: React or Vue.js
-- **State Management**: Redux / Pinia
-- **Charts**: Chart.js or D3.js
-- **Styling**: Tailwind CSS
+- **Framework**: React 18
+- **Routing**: React Router 6
+- **Charts**: Chart.js 4 + react-chartjs-2
+- **HTTP Client**: Axios (with JWT interceptors)
+- **Styling**: Custom CSS variables (dark theme, no framework dependency)
 
 ### Infrastructure
-- **Containerization**: Docker & Docker Compose
-- **Secrets Management**: Environment variables / Vault
+- **Containerization**: Docker + Docker Compose
+- **Reverse Proxy**: nginx (frontend container)
+- **Secrets**: `.env` file (dev) / environment injection (prod)
 
 ---
 
 ## 📋 Implementation Phases
 
-### Phase 1: MVP (Core Functionality)
-- [x] Database schema and setup
-- [ ] Backend API with CRUD operations
-- [ ] Authentication (JWT)
-- [ ] OpenAI service integration
-- [ ] Basic dashboard UI
-- [ ] Manual data entry
+### Phase 1: MVP — ✅ COMPLETE
+- [x] Full project structure (`backend/` + `frontend/`)
+- [x] SQLAlchemy models: `Service`, `Account`, `UsageRecord`, `Alert`, `CostProjection`
+- [x] AES-256 Fernet encryption for API keys at rest (`utils/encryption.py`)
+- [x] JWT authentication — register, login, `/me`, logout (`routes/auth.py`)
+- [x] Full account CRUD + connection test endpoint (`routes/accounts.py`)
+- [x] Services, Usage, Alerts REST endpoints
+- [x] OpenAI billing API integration with exponential backoff (`services/openai_service.py`)
+- [x] Extensible base service class for future integrations (`services/base_service.py`)
+- [x] APScheduler background sync job (`jobs/sync_usage.py`)
+- [x] Cost calculator with pricing table + month-end projections (`utils/cost_calculator.py`)
+- [x] Auto alert generation at 80% / 100% of monthly limit
+- [x] React frontend: Login, Dashboard, Analytics, Settings pages
+- [x] Chart.js daily cost bar chart + service pie chart
+- [x] Account manager with add/delete/test-connection
+- [x] Alert panel with dismiss
+- [x] Docker + Docker Compose for full-stack local dev
+- [x] Database seed script (5 AI services pre-configured)
+- [x] Unit & integration tests (encryption, auth, accounts, OpenAI service)
 
-### Phase 2: Multi-Service Support
-- [ ] Additional service integrations (Claude, Groq, Perplexity)
-- [ ] Account management UI
-- [ ] Background sync scheduler
-- [ ] Historical data tracking
-- [ ] Cost projection algorithm
+### Phase 2: Multi-Service Support ⏳
+- [ ] Anthropic Claude integration (`services/anthropic_service.py`)
+- [ ] Groq integration (`services/groq_service.py`)
+- [ ] Perplexity integration (`services/perplexity_service.py`)
+- [ ] GitHub Copilot manual tracking
+- [ ] Wire new services into `jobs/sync_usage.py`
+- [ ] Enhanced account management UI
 
-### Phase 3: Advanced Features
-- [ ] Email/webhook notifications
-- [ ] Advanced analytics and charts
-- [ ] CSV/JSON export
+### Phase 3: Advanced Features ⏳
+- [ ] Email/webhook alert notifications
+- [ ] CSV/JSON data export
 - [ ] Usage anomaly detection
+- [ ] API rate limit monitoring
+- [ ] Advanced multi-service comparison charts
 
-### Phase 4: Polish & Production
-- [ ] Performance optimization
-- [ ] Comprehensive testing
-- [ ] Production deployment
-- [ ] User documentation
+### Phase 4: Polish & Production ⏳
+- [ ] Performance optimization (query caching, pagination)
+- [ ] Comprehensive E2E tests
+- [ ] Production deployment guide (AWS/Railway/Heroku)
+- [ ] OpenAPI/Swagger docs (`/api/docs`)
 
 ---
 
