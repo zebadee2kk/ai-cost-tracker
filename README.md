@@ -2,10 +2,12 @@
 
 > A unified dashboard to track usage and costs across multiple AI services: OpenAI/ChatGPT, Anthropic Claude, Groq, Perplexity, and more. Monitor token consumption, costs, and usage patterns in real-time.
 
+[![CI/CD](https://github.com/zebadee2kk/ai-cost-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/zebadee2kk/ai-cost-tracker/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/zebadee2kk/ai-cost-tracker/branch/main/graph/badge.svg)](https://codecov.io/gh/zebadee2kk/ai-cost-tracker)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Node](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
-[![Phase](https://img.shields.io/badge/Phase-2%20Complete-green)](ROADMAP.md)
+[![Phase](https://img.shields.io/badge/Phase-3%20In%20Progress-blue)](ROADMAP.md)
 
 ---
 

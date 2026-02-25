@@ -1,91 +1,286 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main", "release/*", "hotfix/*" ]
+    branches: [main, develop]
   pull_request:
-    branches: [ "main", "release/*", "hotfix/*" ]
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: '3.10'
+  NODE_VERSION: '18'
 
 jobs:
-  # ------------------------------------------------------------------
-  # Node.js Pipeline
-  # Runs only if package.json exists
-  # ------------------------------------------------------------------
-  node-ci:
+  # -----------------------------------------------------------------------
+  # Backend Tests (Python / Flask)
+  # Uses SQLite in-memory via TestingConfig (fast, no external service needed)
+  # -----------------------------------------------------------------------
+  backend-tests:
+    name: Backend Tests (Python)
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v6
-    
-    - name: Check for Node.js project
-      id: check_node
-      run: |
-        if [ -f "package.json" ]; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-        else
-          echo "exists=false" >> $GITHUB_OUTPUT
-        fi
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      if: steps.check_node.outputs.exists == 'true'
-      uses: actions/setup-node@v6
-      with:
-        node-version: 'lts/*'
-        cache: 'npm'
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
 
-    - name: Install Dependencies
-      if: steps.check_node.outputs.exists == 'true'
-      run: npm ci
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest-cov pytest-mock coverage
 
-    - name: Run Lint
-      if: steps.check_node.outputs.exists == 'true'
-      run: npm run lint --if-present
+      - name: Run tests with coverage
+        run: |
+          cd backend
+          pytest tests/ -v \
+            --cov=. \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term-missing \
+            --cov-config=.coveragerc
+        env:
+          FLASK_ENV: testing
+          SECRET_KEY: test-secret-key-for-ci-only
+          ENCRYPTION_KEY: tXKK1nN-OlnqTmRHlHGGuwR3GwPFzjqfIQcvDHv6D0U=
 
-    - name: Run Tests
-      if: steps.check_node.outputs.exists == 'true'
-      run: npm test --if-present
+      - name: Check coverage threshold
+        run: |
+          cd backend
+          coverage report --fail-under=80
 
-  # ------------------------------------------------------------------
-  # Python Pipeline
-  # Runs only if requirements.txt or pyproject.toml exists
-  # ------------------------------------------------------------------
-  python-ci:
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Archive coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-report
+          path: backend/htmlcov/
+          retention-days: 30
+
+  # -----------------------------------------------------------------------
+  # Frontend Tests (React / Jest)
+  # -----------------------------------------------------------------------
+  frontend-tests:
+    name: Frontend Tests (React)
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v6
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Check for Python project
-      id: check_python
-      run: |
-        if [ -f "requirements.txt" ] || [ -f "pyproject.toml" ]; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-        else
-          echo "exists=false" >> $GITHUB_OUTPUT
-        fi
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
-    - name: Setup Python
-      if: steps.check_python.outputs.exists == 'true'
-      uses: actions/setup-python@v6
-      with:
-        python-version: '3.x'
-        cache: 'pip'
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
 
-    - name: Install Dependencies
-      if: steps.check_python.outputs.exists == 'true'
-      run: |
-        if [ -f "requirements.txt" ]; then pip install -r requirements.txt; fi
-        if [ -f "pyproject.toml" ]; then pip install .; fi
-        pip install pytest flake8
+      - name: Run linter
+        run: |
+          cd frontend
+          npm run lint --if-present
 
-    - name: Lint with Flake8
-      if: steps.check_python.outputs.exists == 'true'
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings.
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      - name: Run tests with coverage
+        run: |
+          cd frontend
+          npm test -- --coverage --watchAll=false
+        env:
+          CI: true
 
-    - name: Test with pytest
-      if: steps.check_python.outputs.exists == 'true'
-      run: |
-        pytest
+      - name: Build production bundle
+        run: |
+          cd frontend
+          npm run build
+        env:
+          CI: false
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./frontend/coverage/coverage-final.json
+          flags: frontend
+          name: frontend-coverage
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Archive build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/build/
+          retention-days: 7
+
+  # -----------------------------------------------------------------------
+  # Security Scanning
+  # Bandit (Python), npm audit (JS), Trivy (filesystem)
+  # -----------------------------------------------------------------------
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run Bandit (Python security)
+        run: |
+          pip install bandit[toml]
+          bandit -r backend/ -ll -f json -o bandit-report.json || true
+          bandit -r backend/ -ll
+
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-security-report
+          path: bandit-report.json
+          retention-days: 30
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run npm audit (JavaScript)
+        run: |
+          cd frontend
+          npm audit --audit-level=high --json > ../npm-audit.json || true
+          npm audit --audit-level=high || true
+
+      - name: Upload npm audit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-report
+          path: npm-audit.json
+          retention-days: 30
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # -----------------------------------------------------------------------
+  # Docker Build & Push
+  # Runs only on pushes to main after all checks pass
+  # -----------------------------------------------------------------------
+  docker-build:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract version from commit
+        id: version
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-backend:${{ steps.version.outputs.date }}-${{ steps.version.outputs.sha_short }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-backend:latest
+          cache-to: type=inline
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-frontend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-frontend:${{ steps.version.outputs.date }}-${{ steps.version.outputs.sha_short }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-frontend:latest
+          cache-to: type=inline
+
+      - name: Scan backend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-backend:latest
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Scan frontend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/ai-cost-tracker-frontend:latest
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+
+  # -----------------------------------------------------------------------
+  # Notify on CI failure (main branch only)
+  # Requires SLACK_WEBHOOK secret to be set
+  # -----------------------------------------------------------------------
+  notify-on-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, security-scan]
+    if: failure() && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Send Slack notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: 'CI Pipeline Failed on main branch! Check https://github.com/${{ github.repository }}/actions'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        if: ${{ secrets.SLACK_WEBHOOK != '' }}
