@@ -1,0 +1,11 @@
+[tool.bandit]
+exclude_dirs = [
+    "tests",
+    "venv",
+    "env",
+    "migrations"
+]
+skips = [
+    "B404",  # Import subprocess (needed for scheduler)
+    "B603"   # Subprocess without shell (safe usage)
+]
