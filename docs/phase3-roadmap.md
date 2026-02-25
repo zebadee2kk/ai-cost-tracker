@@ -65,7 +65,7 @@ Transform the AI Cost Tracker from a monitoring tool into a comprehensive cost m
 
 #### Deliverables
 1. ✅ **Email Notification Service** (Week 4-5)
-   - Email provider integration (SendGrid/SES)
+   - Email provider integration (SendGrid recommended)
    - Template system for alert emails
    - User notification preferences
    - Rate limiting and throttling
@@ -95,13 +95,13 @@ Transform the AI Cost Tracker from a monitoring tool into a comprehensive cost m
 
 #### Deliverables
 1. ✅ **Cost Forecasting** (Week 7-8)
-   - Time-series prediction models (linear regression)
+   - Time-series prediction models (Linear regression baseline)
    - Monthly/quarterly cost projections
-   - Confidence intervals
+   - Confidence intervals and uncertainty
    - "At this rate" calculations
 
 2. ✅ **Anomaly Detection** (Week 8-9)
-   - Statistical threshold-based detection
+   - Statistical threshold-based detection (Z-score method)
    - Usage spike identification
    - Unusual pattern alerts
    - Historical comparison visualizations
@@ -117,6 +117,112 @@ Transform the AI Cost Tracker from a monitoring tool into a comprehensive cost m
 - Anomaly detection with <10% false positives
 - Rich analytics dashboard functional
 - Performance <2s load time
+
+---
+
+## 📋 Detailed Feature Specifications
+
+### Priority 0 Features
+
+#### 1. CSV/JSON Export System
+**Spec Document**: [phase3-export-spec.md](./phase3-export-spec.md)
+
+**Key Requirements**:
+- Export all usage data with filters (date range, service, account)
+- Support both CSV and JSON formats
+- Streaming for large datasets (>10,000 records)
+- Include metadata (export date, filters applied, totals)
+- Frontend download buttons with preview
+
+**API Endpoint**: `GET /api/usage/export?format={csv|json}&start_date=...&end_date=...&service_id=...`
+
+---
+
+#### 2. Data Source Visual Indicators
+**Spec Document**: [phase3-visual-indicators-spec.md](./phase3-visual-indicators-spec.md)
+
+**Key Requirements**:
+- Badge/label showing "API" vs "Manual" for each data point
+- Chart.js annotations marking manual entries
+- Color coding (blue for API, orange for manual)
+- Filter toggle to show/hide manual entries
+- Hover tooltips with entry metadata
+
+**Design**:
+```
+API Data:   [🔄 API]  (blue badge)
+Manual:     [✏️ Manual] (orange badge)
+```
+
+---
+
+### Priority 1 Features
+
+#### 3. GitHub Actions CI/CD Pipeline
+**Spec Document**: [phase3-ci-guide.md](./phase3-ci-guide.md)
+
+**Key Requirements**:
+- Automated testing on PR and merge
+- Coverage reporting with >80% threshold
+- Docker image build and push to registry
+- Security scanning (Bandit, npm audit, Trivy)
+- Deployment automation (optional for Phase 3)
+
+**Cost**: Free tier (2,000 minutes/month sufficient)
+
+---
+
+#### 4. Alert Notifications (Email/Webhook)
+**Spec Document**: [phase3-notifications-spec.md](./phase3-notifications-spec.md)
+
+**Key Requirements**:
+- Email notifications via SendGrid/SES/Mailgun
+- Webhook support for Slack, Discord, Teams
+- Configurable alert thresholds (%, $, forecast-based)
+- Multi-level alerts (warning 70%, critical 90%, emergency 100%)
+- Rate limiting (max 1 alert/hour per threshold)
+- Alert history and audit log
+
+**Email Service Recommendation**: SendGrid (100 emails/day free, excellent deliverability)
+
+---
+
+### Priority 2 Features
+
+#### 5. Enhanced Analytics & Forecasting
+**Spec Document**: [phase3-analytics-spec.md](./phase3-analytics-spec.md)
+
+**Key Requirements**:
+- **Cost Forecasting**: 30/60/90-day predictions using linear regression
+- **Anomaly Detection**: Z-score method with 3σ threshold
+- **Trend Analysis**: Month-over-month, quarter-over-quarter comparisons
+- **Budget Tracking**: Visual progress bars, burn rate calculations
+- **Model Breakdown**: Costs by model (GPT-4 vs Claude Opus vs Haiku)
+
+**Forecasting Approach**: Start with linear regression, upgrade to ARIMA if needed  
+**Target Accuracy**: <15% MAPE (Mean Absolute Percentage Error)
+
+---
+
+## 🔐 Security & Privacy Considerations
+
+### Email Notifications
+- Store SMTP credentials encrypted (same as API keys)
+- Allow users to opt-out globally
+- No sensitive data in email body (amounts only, no API keys)
+- Unsubscribe link in all emails
+
+### Webhooks
+- Webhook URLs stored encrypted
+- Validate webhook endpoints before saving
+- Rate limiting to prevent abuse
+- IP allowlisting option (optional)
+
+### Data Export
+- Require authentication for export endpoints
+- Log all export actions (audit trail)
+- Rate limit exports (e.g., 10/hour per user)
+- Optionally redact sensitive metadata
 
 ---
 
@@ -159,7 +265,7 @@ Transform the AI Cost Tracker from a monitoring tool into a comprehensive cost m
    - Understanding forecast predictions
 
 2. **Admin Guides**:
-   - Configuring email service (SendGrid/SES)
+   - Configuring email service (SendGrid/SES/Mailgun)
    - Setting up webhook integrations
    - GitHub Actions configuration
 
@@ -168,23 +274,30 @@ Transform the AI Cost Tracker from a monitoring tool into a comprehensive cost m
    - Alert configuration endpoints
    - Notification webhook formats
 
+4. **Developer Guides**:
+   - Adding new alert services
+   - Forecasting algorithm customization
+   - CI/CD pipeline customization
+
 ---
 
 ## 🔄 Migration Path & Rollout
 
-### Phase 3.1 (Export & Indicators)
+### Phase 3.0 → 3.1 (Export & Indicators)
 - No database migrations required
 - No breaking API changes
 - Feature flags: `ENABLE_EXPORT`, `ENABLE_VISUAL_INDICATORS`
 
-### Phase 3.2 (Notifications)
+### Phase 3.1 → 3.2 (Notifications)
 - **Migration**: Add `notification_preferences` table
 - **Migration**: Add `alert_history` table
 - Feature flag: `ENABLE_NOTIFICATIONS`
+- Graceful degradation if email service down
 
-### Phase 3.3 (Analytics)
-- **Migration**: Add `cost_forecasts` table (optional)
+### Phase 3.2 → 3.3 (Analytics)
+- **Migration**: Add `cost_forecasts` table (optional, for caching)
 - **Migration**: Add `anomaly_events` table
+- Feature flag: `ENABLE_FORECASTING`, `ENABLE_ANOMALY_DETECTION`
 - Background jobs for periodic forecast calculation
 
 ---
@@ -205,6 +318,7 @@ Transform the AI Cost Tracker from a monitoring tool into a comprehensive cost m
 - ✅ Alert configuration UI complete
 - ✅ Rate limiting prevents notification spam
 - ✅ Alert history viewable in dashboard
+- ✅ Documentation for notification setup complete
 
 ### Sprint 3.3
 - ✅ 30/60/90-day cost forecasts displayed
@@ -212,6 +326,7 @@ Transform the AI Cost Tracker from a monitoring tool into a comprehensive cost m
 - ✅ Enhanced analytics dashboard live
 - ✅ Budget tracking UI functional
 - ✅ Performance meets <2s page load target
+- ✅ All Phase 3 features documented
 
 ---
 
@@ -224,6 +339,7 @@ Transform the AI Cost Tracker from a monitoring tool into a comprehensive cost m
 - White-label customization
 - Advanced ML-based forecasting
 - Redis caching layer
+- Horizontal scaling support
 
 ---
 
