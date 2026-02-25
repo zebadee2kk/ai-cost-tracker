@@ -1,353 +1,372 @@
-# AI Cost Tracker - Phase 3 Roadmap
+# AI Cost Tracker: Phase 3 Master Roadmap
 
+**Version**: 1.0  
 **Created**: February 25, 2026  
-**Status**: 📋 Planning Complete  
-**Target Launch**: April-May 2026  
-**Phase Lead**: TBD (Codex/Claude Code)
+**Status**: Ready for Implementation  
+**Timeline**: 6-8 weeks total
 
 ---
 
-## 🎯 Phase 3 Vision
+## Overview
 
-Transform the AI Cost Tracker from a monitoring tool into a comprehensive cost management platform with data export, visual indicators, automated alerts, and predictive analytics.
+Phase 3 transforms the AI Cost Tracker from a monitoring tool into a **proactive cost management platform** with exports, visual indicators, CI/CD, notifications, and predictive analytics.
 
----
-
-## 📊 Phase 3 Overview
-
-| Priority | Feature | Effort | Business Value | Dependencies |
-|----------|---------|--------|----------------|--------------|
-| **P0** | CSV/JSON Export System | 2 weeks | High - Most requested | None |
-| **P0** | Data Source Visual Indicators | 1 week | High - UX clarity | None |
-| **P1** | GitHub Actions CI/CD Pipeline | 1 week | High - Code quality | None |
-| **P1** | Alert Notifications (Email/Webhook) | 2-3 weeks | High - Proactive monitoring | None |
-| **P2** | Enhanced Analytics & Forecasting | 2-3 weeks | Medium - Future planning | Export system |
-
-**Total Estimated Effort**: 8-10 weeks  
-**Recommended Sprint Structure**: 3 sprints × 3 weeks
+### Phase 3 Goals
+1. **Export Capability** - Download data for external analysis
+2. **Source Transparency** - Distinguish API vs manual data visually
+3. **Automation** - CI/CD pipeline for quality assurance
+4. **Proactive Alerts** - Email/webhook notifications for budget breaches
+5. **Predictive Insights** - Forecasting and anomaly detection
 
 ---
 
-## 🚀 Sprint Breakdown
+## Feature Matrix
 
-### Sprint 3.1: Foundation (Weeks 1-3)
-**Goal**: Enable data portability and establish CI/CD pipeline
-
-#### Deliverables
-1. ✅ **CSV/JSON Export System** (Week 1-2)
-   - Backend export endpoints with streaming support
-   - Date range filtering and service-specific exports
-   - Frontend download buttons with format selection
-   - Progress indicators for large datasets
-
-2. ✅ **Data Source Visual Indicators** (Week 2)
-   - Badge components for manual vs. API data
-   - Chart.js annotations for data provenance
-   - Filtering UI for source type
-   - Color-coded legends
-
-3. ✅ **GitHub Actions CI/CD** (Week 3)
-   - Test automation (backend + frontend)
-   - Coverage reporting with thresholds
-   - Docker image building and publishing
-   - Security scanning integration
-
-**Success Criteria**:
-- Users can export all data in CSV/JSON format
-- Manual entries clearly distinguished in UI
-- CI pipeline runs on every PR
-- >80% test coverage maintained
+| Feature | Priority | Effort | Status | Dependencies | Document |
+|---------|----------|--------|--------|--------------|----------|
+| **CSV/JSON Export** | P0 | 1 week | ⏳ Ready | None | [phase3-export-spec.md](./phase3-export-spec.md) |
+| **Visual Source Badges** | P0 | 1 week | ⏳ Ready | None | [phase3-visual-indicators-spec.md](./phase3-visual-indicators-spec.md) |
+| **CI/CD Pipeline** | P1 | 1 week | ⏳ Ready | GitHub Actions | [phase3-ci-guide.md](./phase3-ci-guide.md) |
+| **Notifications** | P1 | 2-3 weeks | ⏳ Ready | SendGrid account | [phase3-notifications-spec.md](./phase3-notifications-spec.md) |
+| **Analytics & Forecasting** | P2 | 2-3 weeks | ⏳ Ready | scikit-learn | [phase3-analytics-spec.md](./phase3-analytics-spec.md) |
 
 ---
 
-### Sprint 3.2: Notifications & Alerting (Weeks 4-6)
-**Goal**: Enable proactive cost monitoring through automated notifications
+## Timeline
 
-#### Deliverables
-1. ✅ **Email Notification Service** (Week 4-5)
-   - Email provider integration (SendGrid recommended)
-   - Template system for alert emails
-   - User notification preferences
-   - Rate limiting and throttling
+### Option A: Sequential Implementation (8 weeks)
 
-2. ✅ **Webhook Integration** (Week 5-6)
-   - Slack webhook support
-   - Discord webhook support
-   - Microsoft Teams webhook support
-   - Generic webhook for custom integrations
-
-3. ✅ **Alert Configuration UI** (Week 6)
-   - Threshold management interface
-   - Notification channel selection
-   - Alert history and logs
-   - Test notification functionality
-
-**Success Criteria**:
-- Users receive email alerts when thresholds exceeded
-- Slack/Discord/Teams notifications working
-- Alert configuration intuitive and functional
-- No spam (proper rate limiting)
-
----
-
-### Sprint 3.3: Analytics & Intelligence (Weeks 7-9)
-**Goal**: Provide predictive insights and anomaly detection
-
-#### Deliverables
-1. ✅ **Cost Forecasting** (Week 7-8)
-   - Time-series prediction models (Linear regression baseline)
-   - Monthly/quarterly cost projections
-   - Confidence intervals and uncertainty
-   - "At this rate" calculations
-
-2. ✅ **Anomaly Detection** (Week 8-9)
-   - Statistical threshold-based detection (Z-score method)
-   - Usage spike identification
-   - Unusual pattern alerts
-   - Historical comparison visualizations
-
-3. ✅ **Enhanced Dashboard Charts** (Week 9)
-   - Cost breakdown by model/service
-   - Trend analysis charts
-   - Month-over-month comparisons
-   - Budget tracking visualizations
-
-**Success Criteria**:
-- Accurate 30/60/90 day cost forecasts
-- Anomaly detection with <10% false positives
-- Rich analytics dashboard functional
-- Performance <2s load time
-
----
-
-## 📋 Detailed Feature Specifications
-
-### Priority 0 Features
-
-#### 1. CSV/JSON Export System
-**Spec Document**: [phase3-export-spec.md](./phase3-export-spec.md)
-
-**Key Requirements**:
-- Export all usage data with filters (date range, service, account)
-- Support both CSV and JSON formats
-- Streaming for large datasets (>10,000 records)
-- Include metadata (export date, filters applied, totals)
-- Frontend download buttons with preview
-
-**API Endpoint**: `GET /api/usage/export?format={csv|json}&start_date=...&end_date=...&service_id=...`
-
----
-
-#### 2. Data Source Visual Indicators
-**Spec Document**: [phase3-visual-indicators-spec.md](./phase3-visual-indicators-spec.md)
-
-**Key Requirements**:
-- Badge/label showing "API" vs "Manual" for each data point
-- Chart.js annotations marking manual entries
-- Color coding (blue for API, orange for manual)
-- Filter toggle to show/hide manual entries
-- Hover tooltips with entry metadata
-
-**Design**:
 ```
-API Data:   [🔄 API]  (blue badge)
-Manual:     [✏️ Manual] (orange badge)
+Week 1-2:   CSV/JSON Export System
+Week 3:     Visual Source Indicators
+Week 4:     CI/CD Pipeline Setup
+Week 5-6:   Notification System
+Week 7-8:   Analytics & Forecasting
 ```
 
----
+**Pros**: Lower cognitive load, one feature at a time  
+**Cons**: Slower time-to-value
 
-### Priority 1 Features
+### Option B: Parallel Implementation (6 weeks) ✅ **RECOMMENDED**
 
-#### 3. GitHub Actions CI/CD Pipeline
-**Spec Document**: [phase3-ci-guide.md](./phase3-ci-guide.md)
+```
+Week 1-2:   [Track 1] CSV/JSON Export + Visual Indicators
+            [Track 2] CI/CD Pipeline Setup
 
-**Key Requirements**:
-- Automated testing on PR and merge
-- Coverage reporting with >80% threshold
-- Docker image build and push to registry
-- Security scanning (Bandit, npm audit, Trivy)
-- Deployment automation (optional for Phase 3)
+Week 3-4:   [Track 1] Notification System (Email + Slack)
+            [Track 2] Analytics (Forecasting)
 
-**Cost**: Free tier (2,000 minutes/month sufficient)
+Week 5-6:   [Track 1] Notification System (Discord + Teams)
+            [Track 2] Analytics (Anomaly Detection)
+            [Track 3] Integration Testing & Polish
+```
 
----
-
-#### 4. Alert Notifications (Email/Webhook)
-**Spec Document**: [phase3-notifications-spec.md](./phase3-notifications-spec.md)
-
-**Key Requirements**:
-- Email notifications via SendGrid/SES/Mailgun
-- Webhook support for Slack, Discord, Teams
-- Configurable alert thresholds (%, $, forecast-based)
-- Multi-level alerts (warning 70%, critical 90%, emergency 100%)
-- Rate limiting (max 1 alert/hour per threshold)
-- Alert history and audit log
-
-**Email Service Recommendation**: SendGrid (100 emails/day free, excellent deliverability)
+**Pros**: Faster delivery, features complement each other  
+**Cons**: Requires 2 developers or AI agents working in parallel
 
 ---
 
-### Priority 2 Features
+## Detailed Schedule (Parallel Track)
 
-#### 5. Enhanced Analytics & Forecasting
-**Spec Document**: [phase3-analytics-spec.md](./phase3-analytics-spec.md)
+### Sprint 1: Export + Visual + CI (Weeks 1-2)
 
-**Key Requirements**:
-- **Cost Forecasting**: 30/60/90-day predictions using linear regression
-- **Anomaly Detection**: Z-score method with 3σ threshold
-- **Trend Analysis**: Month-over-month, quarter-over-quarter comparisons
-- **Budget Tracking**: Visual progress bars, burn rate calculations
-- **Model Breakdown**: Costs by model (GPT-4 vs Claude Opus vs Haiku)
+#### Track 1: Frontend Features (Days 1-10)
+**Owner**: Claude Code / Frontend Developer
 
-**Forecasting Approach**: Start with linear regression, upgrade to ARIMA if needed  
-**Target Accuracy**: <15% MAPE (Mean Absolute Percentage Error)
+**Week 1 (Days 1-5)**:
+- Day 1-2: Implement CSV/JSON export API endpoints
+- Day 3: Create ExportButton component with format selector
+- Day 4-5: Add streaming export for large datasets
+- **Deliverable**: Users can export usage data in CSV/JSON
 
----
+**Week 2 (Days 6-10)**:
+- Day 6-7: Create SourceBadge component (API vs Manual)
+- Day 8: Integrate Chart.js custom point styles
+- Day 9: Add SourceFilter component
+- Day 10: Testing + documentation
+- **Deliverable**: Visual distinction between data sources
 
-## 🔐 Security & Privacy Considerations
+#### Track 2: CI/CD Setup (Days 1-10)
+**Owner**: Codex / DevOps Engineer
 
-### Email Notifications
-- Store SMTP credentials encrypted (same as API keys)
-- Allow users to opt-out globally
-- No sensitive data in email body (amounts only, no API keys)
-- Unsubscribe link in all emails
+**Week 1 (Days 1-5)**:
+- Day 1-2: Create `.github/workflows/ci.yml`
+- Day 3: Configure backend tests with PostgreSQL service
+- Day 4: Configure frontend tests with coverage
+- Day 5: Add security scanning (Bandit, npm audit, Trivy)
+- **Deliverable**: CI pipeline runs on every PR
 
-### Webhooks
-- Webhook URLs stored encrypted
-- Validate webhook endpoints before saving
-- Rate limiting to prevent abuse
-- IP allowlisting option (optional)
-
-### Data Export
-- Require authentication for export endpoints
-- Log all export actions (audit trail)
-- Rate limit exports (e.g., 10/hour per user)
-- Optionally redact sensitive metadata
-
----
-
-## 📊 Success Metrics
-
-### Phase 3 KPIs
-
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| **Export Adoption** | >60% of users | Track export endpoint usage |
-| **Alert Delivery Success** | >95% | Log delivery attempts vs. successes |
-| **Forecast Accuracy** | <15% MAPE | Compare predictions to actuals monthly |
-| **Anomaly Detection Precision** | <10% false positives | User feedback on false alarms |
-| **CI Pipeline Speed** | <5 min total | GitHub Actions run time |
-| **Test Coverage** | >80% backend, >70% frontend | Coverage reports in CI |
+**Week 2 (Days 6-10)**:
+- Day 6-7: Set up Codecov.io integration
+- Day 8: Configure Docker build (main branch only)
+- Day 9: Add branch protection rules
+- Day 10: Documentation + troubleshooting guide
+- **Deliverable**: Full CI/CD pipeline operational
 
 ---
 
-## 🛠️ Technical Debt & Improvements
+### Sprint 2: Notifications + Analytics Core (Weeks 3-4)
 
-### From Phase 2
-- ✅ Fix pre-existing `test_accounts.py` failures (3 tests)
-- ✅ Wire `ManualEntryModal` into `AccountManager.jsx`
-- ⏳ Extend connection test for all services (Phase 3.1)
+#### Track 1: Notification System (Days 11-20)
+**Owner**: Claude Code / Backend Developer
 
-### New in Phase 3
-- Implement retry logic for API sync failures
-- Add pagination to usage history endpoint
-- Optimize Chart.js rendering for large datasets
-- Add database indexes for export queries
-- Implement caching for forecast calculations
+**Week 3 (Days 11-15)**:
+- Day 11-12: Database migrations (notification_preferences, queue)
+- Day 13: Implement EmailSender class (SendGrid)
+- Day 14: Create email templates (budget, anomaly, system)
+- Day 15: Implement SlackSender class
+- **Deliverable**: Email + Slack notifications working
 
----
+**Week 4 (Days 16-20)**:
+- Day 16: Implement alert generation job (APScheduler)
+- Day 17: Implement notification dispatcher job
+- Day 18: Add rate limiting logic
+- Day 19: Create NotificationSettingsPage (frontend)
+- Day 20: Testing + documentation
+- **Deliverable**: Full notification system with 2 channels
 
-## 📚 Documentation Updates Required
+#### Track 2: Analytics & Forecasting (Days 11-20)
+**Owner**: Claude Code / Data Engineer
 
-1. **User Guides**:
-   - Export feature walkthrough
-   - Setting up alert notifications
-   - Understanding forecast predictions
+**Week 3 (Days 11-15)**:
+- Day 11-12: Implement CostForecaster class (Linear Regression)
+- Day 13: Add `/api/analytics/forecast` endpoint
+- Day 14: Test forecasting accuracy (MAPE <15%)
+- Day 15: Create EnhancedAnalyticsPage (frontend)
+- **Deliverable**: 30/60/90-day cost forecasting
 
-2. **Admin Guides**:
-   - Configuring email service (SendGrid/SES/Mailgun)
-   - Setting up webhook integrations
-   - GitHub Actions configuration
-
-3. **API Documentation**:
-   - Export endpoints
-   - Alert configuration endpoints
-   - Notification webhook formats
-
-4. **Developer Guides**:
-   - Adding new alert services
-   - Forecasting algorithm customization
-   - CI/CD pipeline customization
-
----
-
-## 🔄 Migration Path & Rollout
-
-### Phase 3.0 → 3.1 (Export & Indicators)
-- No database migrations required
-- No breaking API changes
-- Feature flags: `ENABLE_EXPORT`, `ENABLE_VISUAL_INDICATORS`
-
-### Phase 3.1 → 3.2 (Notifications)
-- **Migration**: Add `notification_preferences` table
-- **Migration**: Add `alert_history` table
-- Feature flag: `ENABLE_NOTIFICATIONS`
-- Graceful degradation if email service down
-
-### Phase 3.2 → 3.3 (Analytics)
-- **Migration**: Add `cost_forecasts` table (optional, for caching)
-- **Migration**: Add `anomaly_events` table
-- Feature flag: `ENABLE_FORECASTING`, `ENABLE_ANOMALY_DETECTION`
-- Background jobs for periodic forecast calculation
+**Week 4 (Days 16-20)**:
+- Day 16-17: Implement AnomalyDetector class (Z-score)
+- Day 18: Add `/api/analytics/anomalies` endpoint
+- Day 19: Integrate anomaly markers into charts
+- Day 20: Testing + documentation
+- **Deliverable**: Anomaly detection with visual indicators
 
 ---
 
-## ✅ Definition of Done (Phase 3)
+### Sprint 3: Extend + Polish (Weeks 5-6)
 
-### Sprint 3.1
-- ✅ Users can export data in CSV and JSON formats
-- ✅ Manual entries have visual badges in UI
-- ✅ Chart.js shows annotations for data sources
-- ✅ CI pipeline runs on all PRs with >80% coverage
-- ✅ Documentation updated for export feature
-- ✅ Tests passing for all new features
+#### Track 1: Additional Notification Channels (Days 21-25)
+**Owner**: Claude Code
 
-### Sprint 3.2
-- ✅ Email alerts delivered successfully
-- ✅ Slack, Discord, Teams webhooks functional
-- ✅ Alert configuration UI complete
-- ✅ Rate limiting prevents notification spam
-- ✅ Alert history viewable in dashboard
-- ✅ Documentation for notification setup complete
+- Day 21-22: Implement DiscordSender class
+- Day 23-24: Implement Microsoft Teams sender (optional)
+- Day 25: Add test notification endpoints
+- **Deliverable**: 3-4 notification channels supported
 
-### Sprint 3.3
-- ✅ 30/60/90-day cost forecasts displayed
-- ✅ Anomaly detection identifies usage spikes
-- ✅ Enhanced analytics dashboard live
-- ✅ Budget tracking UI functional
-- ✅ Performance meets <2s page load target
-- ✅ All Phase 3 features documented
+#### Track 2: Advanced Analytics (Days 21-25)
+**Owner**: Claude Code
 
----
+- Day 21: Add budget burn rate tracking
+- Day 22: Add model-level cost breakdown (GPT-4 vs Claude)
+- Day 23: Add trend analysis (MoM, QoQ comparisons)
+- Day 24-25: Performance optimization (<2s page load)
+- **Deliverable**: Complete analytics dashboard
 
-## 🎉 Post-Phase 3 Roadmap Preview
+#### Track 3: Integration Testing (Days 26-30)
+**Owner**: Codex / QA Engineer
 
-### Phase 4: Enterprise & Scale (Q3 2026)
-- Multi-user support (teams/organizations)
-- Role-based access control (RBAC)
-- SSO integration (SAML, OAuth)
-- White-label customization
-- Advanced ML-based forecasting
-- Redis caching layer
-- Horizontal scaling support
+- Day 26-27: End-to-end testing (export + notify + forecast)
+- Day 28: Cross-browser testing (Chrome, Firefox, Safari)
+- Day 29: Performance testing (load times, API response)
+- Day 30: Security audit + documentation review
+- **Deliverable**: Production-ready Phase 3
 
 ---
 
-**Status**: 📋 Planning Complete | Ready for Implementation  
-**Next Steps**: 
-1. Review and approve roadmap
-2. Assign Sprint 3.1 to implementation team
-3. Create GitHub project board with issues
-4. Begin development!
+## Success Metrics
 
-**Questions?** Contact [@zebadee2kk](https://github.com/zebadee2kk)
+### Export System
+- ✅ **Target**: 40% of users export data monthly
+- **Measurement**: Track export button clicks
+
+### Visual Indicators
+- ✅ **Target**: 95% users correctly identify data sources
+- **Measurement**: Usability survey (5 questions)
+
+### CI/CD
+- ✅ **Target**: >80% test coverage (backend), >70% (frontend)
+- **Measurement**: Codecov dashboard
+
+### Notifications
+- ✅ **Target**: >95% delivery success rate
+- **Measurement**: `sent / queued * 100`
+
+### Analytics
+- ✅ **Target**: <15% MAPE for 30-day forecasts
+- **Measurement**: Compare predictions to actual costs
+
+---
+
+## Risk Management
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| **Insufficient historical data** | Medium | High | Require 14+ days before enabling forecasting |
+| **Email deliverability issues** | Low | Medium | Use SendGrid with high reputation score |
+| **False positive anomalies** | Medium | Low | Tune Z-score threshold based on user feedback |
+| **CI/CD exceeds free tier** | Low | Low | Optimize job runtime, use caching |
+| **Export performance issues** | Medium | Medium | Implement streaming for >10k records |
+
+---
+
+## Dependencies
+
+### External Services (Free Tier Sufficient)
+- **SendGrid**: Email notifications (100/day free)
+- **Codecov**: Coverage reporting (unlimited for open source)
+- **Docker Hub**: Container registry (1 private repo free)
+
+### Python Libraries
+```
+scikit-learn==1.4.0    # Forecasting
+sendgrid==6.11.0       # Email
+APScheduler==3.10.4    # Background jobs
+```
+
+### npm Packages
+```
+chart.js==4.4.1        # Charts
+react-chartjs-2==5.2.0 # React wrapper
+```
+
+---
+
+## Handover to Implementation
+
+### For Claude Code (Development)
+
+**Starting Points**:
+1. **Week 1-2**: Implement export system ([phase3-export-spec.md](./phase3-export-spec.md))
+2. **Week 1-2**: Add visual indicators ([phase3-visual-indicators-spec.md](./phase3-visual-indicators-spec.md))
+3. **Week 3-4**: Build notification system ([phase3-notifications-spec.md](./phase3-notifications-spec.md))
+4. **Week 3-4**: Create analytics features ([phase3-analytics-spec.md](./phase3-analytics-spec.md))
+
+**Instructions**:
+- Each spec document contains complete code examples
+- Follow the implementation checklists in each document
+- Write tests for every feature (target >80% coverage)
+- Commit frequently with descriptive messages
+- Open PR when feature is complete + tested
+
+### For Codex (Review & Validation)
+
+**Review Checklist**:
+- [ ] Code follows style guidelines (Black for Python, ESLint for JS)
+- [ ] All functions have docstrings/comments
+- [ ] Tests written and passing (>80% coverage)
+- [ ] No security vulnerabilities (Bandit, npm audit clean)
+- [ ] API endpoints documented
+- [ ] Error handling implemented
+- [ ] Performance acceptable (<2s page load, <500ms API)
+
+**Testing Focus**:
+- Export: Test with 1k, 10k, 100k records
+- Notifications: Test delivery + rate limiting
+- Forecasting: Validate MAPE <15%
+- Anomaly detection: Test false positive rate
+
+### For Perplexity (Coordination)
+
+**Status Tracking**:
+- Weekly progress updates from Claude Code
+- Weekly code review reports from Codex
+- Escalate blockers immediately
+- Coordinate sprint planning
+
+**Decision Points**:
+- Week 2: Export + visual indicators complete? Proceed to notifications
+- Week 4: Core features complete? Proceed to polish sprint
+- Week 6: Phase 3 complete? Plan Phase 4 kickoff
+
+---
+
+## Phase 3 Completion Checklist
+
+### Features
+- [ ] CSV/JSON export working (tested with 10k+ records)
+- [ ] Visual source badges on all data points
+- [ ] CI/CD pipeline passing on all PRs
+- [ ] Email notifications delivered successfully
+- [ ] Slack notifications working
+- [ ] 30/60/90-day forecasting accurate (<15% MAPE)
+- [ ] Anomaly detection with <10% false positives
+
+### Quality
+- [ ] Backend test coverage >80%
+- [ ] Frontend test coverage >70%
+- [ ] Zero high-severity security vulnerabilities
+- [ ] All API endpoints documented
+- [ ] User documentation updated
+
+### Performance
+- [ ] Export <30s for 100k records
+- [ ] Analytics page loads in <2s
+- [ ] Notification delivery <5 min from threshold breach
+
+### Deployment
+- [ ] Docker images built and pushed
+- [ ] Environment variables documented
+- [ ] Migration scripts tested
+- [ ] Rollback plan documented
+
+---
+
+## Next Steps After Phase 3
+
+### Phase 4 Preview (Future)
+
+**Cost Optimization Features**:
+- Model comparison tool (GPT-4 vs Claude 3.5 vs Haiku)
+- Cost-per-query analysis
+- Batch processing recommendations
+- Caching effectiveness metrics
+
+**Team Features**:
+- Multi-user support (team accounts)
+- Role-based access control (admin, viewer, editor)
+- Shared dashboards
+- Team budgets with sub-allocations
+
+**Advanced Analytics**:
+- Usage heatmaps (day-of-week, hour-of-day)
+- Cohort analysis (new vs returning queries)
+- A/B test cost tracking
+- Custom report builder
+
+**Integrations**:
+- LangSmith integration
+- OpenTelemetry tracing
+- Grafana dashboard export
+- Slack bot for quick queries
+
+---
+
+## Resources
+
+### Documentation
+- [Phase 3 Export Spec](./phase3-export-spec.md)
+- [Phase 3 Visual Indicators Spec](./phase3-visual-indicators-spec.md)
+- [Phase 3 CI/CD Guide](./phase3-ci-guide.md)
+- [Phase 3 Notifications Spec](./phase3-notifications-spec.md)
+- [Phase 3 Analytics Spec](./phase3-analytics-spec.md)
+
+### External References
+- [SendGrid API Docs](https://docs.sendgrid.com/api-reference)
+- [Chart.js Point Styles](https://www.chartjs.org/docs/latest/configuration/elements.html#point-styles)
+- [GitHub Actions Workflow Syntax](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions)
+- [scikit-learn Linear Regression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html)
+
+### Communication
+- **Slack Channel**: #ai-cost-tracker-dev
+- **GitHub Issues**: Tag with `phase-3` label
+- **Weekly Sync**: Mondays 10am GMT
+
+---
+
+**Roadmap Version**: 1.0  
+**Last Updated**: February 25, 2026  
+**Next Review**: Weekly (every Monday)
+
+**Status**: ✅ Ready for Implementation  
+**Go/No-Go Decision**: ✅ **GO** - All specifications complete, dependencies identified, resources allocated

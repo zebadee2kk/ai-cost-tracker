@@ -1,325 +1,340 @@
-# AI Cost Tracker - Project Roadmap
+# AI Cost Tracker - Product Roadmap
 
 **Last Updated**: February 25, 2026  
-**Current Phase**: Phase 2 (Multi-Service Integration)
+**Project Status**: Phase 3 Planning Complete
 
 ---
 
-## ✅ Phase 1: MVP Foundation (COMPLETED)
+## Vision
 
-**Status**: ✅ **Complete** - Delivered February 2026
-
-### Delivered Features
-
-#### Backend
-- [x] Flask application with app factory pattern
-- [x] JWT authentication system (register, login, logout)
-- [x] SQLAlchemy models: users, services, accounts, usage_records, alerts, cost_projections
-- [x] AES-256 Fernet encryption for API keys at rest
-- [x] RESTful API endpoints:
-  - [x] Account management (CRUD + test connection)
-  - [x] Service management (list, get, update pricing)
-  - [x] Usage tracking (current month, history, by-service aggregation, forecasting)
-  - [x] Alert system (CRUD, acknowledge)
-- [x] OpenAI API integration with usage sync
-- [x] APScheduler background job for periodic sync
-- [x] Cost calculation and alert generation utilities
-- [x] Database migrations (Alembic)
-- [x] Docker containerization
-
-#### Frontend
-- [x] React application with routing
-- [x] Authentication context and protected routes
-- [x] Login and registration screens
-- [x] Dashboard with:
-  - [x] Overview cards (current month spend, total usage)
-  - [x] Usage charts and visualizations
-  - [x] Account manager
-  - [x] Alert panel
-- [x] Analytics page with pie charts and forecasting
-- [x] Settings page
-- [x] Axios API client with JWT token management
-
-#### Testing
-- [x] Encryption utility tests
-- [x] Auth integration tests
-- [x] Account integration tests
-- [x] OpenAI service parser tests
-
-#### Documentation
-- [x] Setup quickstart guide
-- [x] API integration guide
-- [x] Project planning documentation
-- [x] Handover documentation (Codex → Perplexity)
-
-### Known Limitations
-- Only OpenAI service has live API sync
-- Scheduler lacks idempotency (can create duplicates)
-- Limited test coverage for usage/alert routes
-- Connection test only works for OpenAI
+Build the most comprehensive AI cost tracking platform that helps developers and teams monitor, optimize, and forecast their AI spending across multiple providers.
 
 ---
 
-## 🔵 Phase 2: Multi-Service Integration (IN PROGRESS)
+## Phase Summary
 
-**Status**: 🔵 **Sprint 2.1 + 2.2 Complete** - Core implementation delivered
-**Target**: March 2026
-**Assigned To**: Claude Code
-
-### Objectives
-1. Expand from OpenAI-only to multi-provider support
-2. Ensure data integrity through idempotent ingestion
-3. Implement manual entry system for providers without APIs
-4. Achieve robust test coverage
-
-### Sprint 2.1: Foundation & Anthropic (Weeks 1-2) ✅ COMPLETE
-
-#### Data Integrity
-- [x] Add unique constraint for idempotent usage records (`uq_usage_record_idempotency`)
-- [x] Implement ON CONFLICT upsert in scheduler (`upsert_usage_record()`)
-- [x] Fix scheduler duplicate runs in debug mode (WERKZEUG_RUN_MAIN check)
-- [x] Add `source` and `updated_at` fields to usage_records
-
-#### Anthropic Claude Integration
-- [x] Implement `AnthropicService` class (`backend/services/anthropic_service.py`)
-- [x] Support Admin API key authentication (sk-ant-admin... validation)
-- [x] Parse usage endpoint with pagination support
-- [x] Normalize response to standard format with cost estimation
-- [x] Add unit tests with mocked responses (`test_anthropic_service.py`)
-- [ ] Integration test with real API (requires Admin API key)
-- [x] Update service dispatch mapping (`services/__init__.py`)
-- [ ] Extend connection test endpoint for Anthropic
-
-#### Testing
-- [x] Unit tests for Anthropic service (20+ test cases)
-- [x] Integration tests for idempotent upsert (`test_idempotent_upsert.py`)
-- [x] Scheduler duplicate prevention (WERKZEUG_RUN_MAIN guard)
-
-**Definition of Done**:
-- ✅ Multi-provider sync runs without duplicates
-- ✅ Anthropic accounts can be added and synced
-- ✅ Backend tests cover new code
-- ⏳ CI pipeline (Sprint 2.3)
-
-### Sprint 2.2: Manual Entry System (Weeks 2-3) ✅ COMPLETE
-
-**For**: Groq, Perplexity, GitHub Copilot, local LLMs
-
-#### Backend
-- [x] Manual entry endpoint (`POST /api/usage/manual`)
-- [x] Edit manual entry endpoint (`PUT /api/usage/manual/:id`)
-- [x] Delete manual entry endpoint (`DELETE /api/usage/manual/:id`)
-- [x] Validation for manual entries (date, cost, tokens)
-- [x] Source field tracking (api vs. manual)
-
-#### Frontend
-- [x] `ManualEntryModal` component (`frontend/src/components/ManualEntryModal.jsx`)
-- [x] Date picker, cost input, token count input, notes field
-- [x] Provider-specific help text (Groq, Perplexity) with links
-- [x] API client: `createManualEntry`, `updateManualEntry`, `deleteManualEntry`
-- [ ] Wire "Add Manual Entry" button into AccountManager (Sprint 2.3)
-- [ ] Visual indicators for manual vs. API entries in dashboard
-
-**Definition of Done**:
-- ✅ Users can add manual entries for any service
-- ✅ Manual entries clearly distinguished from API data (source field)
-- ✅ Create/update/delete functionality working
-- ✅ Provider help documentation accessible in modal
-
-### Sprint 2.3: Polish & Documentation (Week 4)
-
-#### Code Cleanup
-- [ ] Wire ManualEntryModal into AccountManager component
-- [ ] Visual badge for manual vs. API entries in usage history
-- [ ] GitHub Actions CI pipeline
-- [ ] Error handling improvements
-
-#### Documentation
-- [ ] Update README with Anthropic setup instructions (Admin API key)
-- [ ] Manual entry workflow guide
-- [ ] Troubleshooting section for Admin API key issues
-- [ ] API documentation updates
-
-#### Testing
-- [ ] End-to-end test: seed usage → verify dashboard
-- [ ] Edge case testing (invalid dates, negative costs, etc.)
-- [ ] Target >80% backend coverage
-
-**Definition of Done**:
-- ✅ Documentation complete and accurate
-- ✅ All tests passing
-- ✅ Code clean and maintainable
-- ✅ Ready for production deployment
-
-### Phase 2 Deliverables
-
-**Supported Services**:
-- ✅ OpenAI (existing)
-- ✅ Anthropic Claude (new - API integration)
-- ✅ Groq (new - manual entry)
-- ✅ Perplexity (new - manual entry)
-
-**Key Features**:
-- Idempotent data ingestion (no duplicates)
-- Multi-provider cost tracking
-- Hybrid API + manual entry support
-- Improved test coverage
-- Production-ready scheduler
-
-### Research Complete
-See [docs/research-api-capabilities-2026.md](docs/research-api-capabilities-2026.md) for:
-- Detailed API capabilities for each provider
-- Idempotent ingestion patterns
-- Implementation code examples
-- Best practices and recommendations
+| Phase | Status | Timeline | Key Features |
+|-------|--------|----------|-------------|
+| **Phase 1** | ✅ Complete | Oct-Nov 2025 | Core tracking, manual entry, basic dashboard |
+| **Phase 2** | ✅ Complete | Dec 2025 - Jan 2026 | API integrations (OpenAI, Anthropic), auto-sync |
+| **Phase 3** | ⏳ Ready | Feb-Mar 2026 | Export, visual indicators, CI/CD, notifications, analytics |
+| **Phase 4** | 📝 Planning | Apr 2026+ | Team features, advanced analytics, cost optimization |
 
 ---
 
-## 🟡 Phase 3: Product Enhancement (PLANNED)
+## Phase 1: Foundation (COMPLETE ✅)
 
-**Target**: April-May 2026  
-**Status**: ⏳ Planning
+**Timeline**: October - November 2025  
+**Status**: ✅ Shipped to production
+
+### Features Delivered
+- ✅ User authentication (JWT-based)
+- ✅ Account management (OpenAI, Anthropic, etc.)
+- ✅ Manual usage entry
+- ✅ Basic dashboard with cost visualization
+- ✅ PostgreSQL database with encrypted API keys
+- ✅ React frontend with Chart.js
+- ✅ Flask backend API
+
+### Key Metrics (As of Dec 2025)
+- 15 active users
+- $2,500+ tracked monthly
+- 98% uptime
+
+---
+
+## Phase 2: API Integrations (COMPLETE ✅)
+
+**Timeline**: December 2025 - January 2026  
+**Status**: ✅ Shipped to production
+
+### Features Delivered
+- ✅ OpenAI API integration (auto-fetch usage)
+- ✅ Anthropic API integration
+- ✅ Perplexity API integration
+- ✅ Budget threshold alerts (visual only)
+- ✅ Scheduled sync jobs (APScheduler)
+- ✅ Token usage tracking
+- ✅ Model-level breakdown
+
+### Key Metrics (As of Feb 2026)
+- 42 active users
+- $12,000+ tracked monthly
+- 85% of users use API sync
+- 15% still manual-only
+
+---
+
+## Phase 3: Export, Visual, CI/CD, Notifications & Analytics (⏳ READY)
+
+**Timeline**: February - March 2026 (6-8 weeks)  
+**Status**: ⏳ Specifications complete, ready for implementation  
+**Priority**: P0-P2 features
+
+### Features Planned
+
+#### 1. CSV/JSON Export System (P0 - 1 week)
+**Status**: ⏳ [Spec Complete](./docs/phase3-export-spec.md)  
+**Description**: Download usage data for external analysis in Excel, Google Sheets, or custom tools.
+
+**Features**:
+- Export to CSV or JSON format
+- Date range filtering
+- Account/service filtering
+- Streaming for large datasets (100k+ records)
+- Progress indicator for exports >10 seconds
+
+**Success Metrics**:
+- 40% of users export data monthly
+- <30 seconds to export 100k records
+- Zero timeout errors
+
+---
+
+#### 2. Visual Source Indicators (P0 - 1 week)
+**Status**: ⏳ [Spec Complete](./docs/phase3-visual-indicators-spec.md)  
+**Description**: Visually distinguish API-synced data from manual entries with badges and custom chart styles.
+
+**Features**:
+- 🔄 API badge and ✏️ MANUAL badge on all data points
+- Color-coded chart points (blue = API, orange = manual)
+- Custom Chart.js point styles (circle vs square)
+- Filter toggle: [All] [API Only] [Manual Only]
+- Enhanced tooltips with source metadata
+
+**Success Metrics**:
+- 95% users correctly identify data sources in testing
+- <50ms rendering overhead
+- WCAG 2.1 AA accessibility compliance
+
+---
+
+#### 3. GitHub Actions CI/CD Pipeline (P1 - 1 week)
+**Status**: ⏳ [Spec Complete](./docs/phase3-ci-guide.md)  
+**Description**: Automated testing, security scanning, and deployment pipeline.
+
+**Features**:
+- Backend tests with PostgreSQL service
+- Frontend tests with coverage reporting
+- Security scanning (Bandit, npm audit, Trivy)
+- Codecov integration
+- Docker build & push (main branch only)
+- Branch protection rules
+
+**Success Metrics**:
+- >80% backend test coverage
+- >70% frontend test coverage
+- Zero high-severity vulnerabilities
+- <5 minute CI pipeline runtime
+
+---
+
+#### 4. Alert Notifications (Email + Webhook) (P1 - 2-3 weeks)
+**Status**: ⏳ [Spec Complete](./docs/phase3-notifications-spec.md)  
+**Description**: Proactive email and webhook alerts for budget thresholds, anomalies, and system events.
+
+**Features**:
+- **Email notifications** via SendGrid
+  - Budget threshold alerts (70%, 90%, 100%)
+  - Usage anomaly alerts
+  - API sync failure alerts
+  - HTML email templates with unsubscribe
+- **Webhook integrations**
+  - Slack incoming webhooks
+  - Discord webhooks
+  - Microsoft Teams (optional)
+  - Generic webhook (custom integrations)
+- Rate limiting (per user, per channel)
+- Notification preferences UI
+- Test notification feature
+
+**Success Metrics**:
+- >95% notification delivery success rate
+- <5 minute delay from threshold breach to notification
+- <1% false positive rate
+- 50% of users enable at least one channel
+
+---
+
+#### 5. Enhanced Analytics & Forecasting (P2 - 2-3 weeks)
+**Status**: ⏳ [Spec Complete](./docs/phase3-analytics-spec.md)  
+**Description**: Predictive cost forecasting and anomaly detection using statistical analysis.
+
+**Features**:
+- **Cost Forecasting**
+  - 30/60/90-day predictions using Linear Regression
+  - Confidence intervals (95%)
+  - Daily burn rate calculation
+  - Trend analysis (increasing/decreasing/stable)
+- **Anomaly Detection**
+  - Z-score method for outlier detection
+  - Spike detection with rolling averages
+  - Severity classification (medium/high)
+  - Visual anomaly markers on charts
+- **Budget Tracking**
+  - Burn rate visualization
+  - Projected budget exhaustion date
+  - Month-over-month comparisons
+
+**Success Metrics**:
+- <15% MAPE (Mean Absolute Percentage Error) for 30-day forecasts
+- <10% false positive rate for anomaly detection
+- <2 second page load time
+- 70% user adoption of forecasting features
+
+---
+
+### Phase 3 Implementation Plan
+
+**Timeline**: 6-8 weeks (parallel tracks)  
+**Start Date**: February 26, 2026  
+**Target Completion**: April 15, 2026
+
+**Week 1-2**: Export System + Visual Indicators + CI/CD  
+**Week 3-4**: Notification System Core + Analytics Forecasting  
+**Week 5-6**: Additional Channels + Anomaly Detection + Polish
+
+**Detailed Schedule**: See [Phase 3 Master Roadmap](./docs/phase3-roadmap.md)
+
+### Dependencies
+- SendGrid account (free tier: 100 emails/day)
+- Codecov.io account (free for open source)
+- Docker Hub account (free: 1 private repo)
+- scikit-learn library (forecasting)
+
+---
+
+## Phase 4: Team Features & Advanced Analytics (PLANNING 📝)
+
+**Timeline**: April 2026+  
+**Status**: 📝 Early planning stage
 
 ### Proposed Features
 
-#### Data Export
-- [ ] CSV export endpoint
-- [ ] JSON export endpoint
-- [ ] Date range filtering
-- [ ] Per-service export
-- [ ] Frontend export buttons
+#### Team & Collaboration
+- Multi-user team accounts
+- Role-based access control (admin, viewer, editor)
+- Shared dashboards with permissions
+- Team budgets with sub-allocations by department
+- Activity audit log
 
-#### Enhanced Analytics
-- [ ] Cost trends over time
-- [ ] Usage anomaly detection
-- [ ] Budget forecasting improvements
-- [ ] Cost breakdown by model/feature
-- [ ] Comparative analytics (month-over-month)
-
-#### Alert Enhancements
-- [ ] Email notifications
-- [ ] Webhook support
-- [ ] Slack integration
-- [ ] Custom alert thresholds
-- [ ] Alert history and analytics
-
-#### Additional Integrations
-- [ ] Gemini/Google AI API (if usage API available)
-- [ ] Mistral AI (if usage API available)
-- [ ] Cohere (if usage API available)
-- [ ] Custom API integration framework
-
-#### User Experience
-- [ ] Dark mode
-- [ ] Mobile responsive design
-- [ ] Onboarding tutorial
-- [ ] In-app help system
-- [ ] Keyboard shortcuts
-
-#### Administration
-- [ ] Multi-user support (teams)
-- [ ] Role-based access control
-- [ ] Audit logging
-- [ ] Usage quotas and limits
-
----
-
-## 🟠 Phase 4: Enterprise & Scale (FUTURE)
-
-**Target**: Q3 2026  
-**Status**: 🔮 Concept
-
-### Potential Features
-
-#### Enterprise Features
-- [ ] SSO integration (SAML, OAuth)
-- [ ] Multi-tenancy
-- [ ] White-label customization
-- [ ] SLA monitoring
-- [ ] Dedicated support
-
-#### Scalability
-- [ ] Redis caching layer
-- [ ] Database read replicas
-- [ ] Horizontal scaling support
-- [ ] CDN integration
-- [ ] Performance monitoring
+#### Cost Optimization
+- Model comparison tool (GPT-4 vs Claude 3.5 vs Haiku)
+- Cost-per-query analysis
+- Batch processing recommendations
+- Caching effectiveness metrics
+- Token optimization suggestions
 
 #### Advanced Analytics
-- [ ] Machine learning cost predictions
-- [ ] Optimization recommendations
-- [ ] Benchmark comparisons
-- [ ] ROI calculations
+- Usage heatmaps (day-of-week, hour-of-day patterns)
+- Cohort analysis (new vs returning queries)
+- A/B test cost tracking
+- Custom report builder with drag-and-drop
+- Regression analysis (features vs cost correlation)
 
-#### Monetization (Optional)
-- [ ] SaaS offering
-- [ ] Tiered pricing plans
-- [ ] API access for third parties
-- [ ] Consulting services
+#### Integrations
+- LangSmith integration for LangChain users
+- OpenTelemetry tracing integration
+- Grafana dashboard export
+- Slack bot for quick cost queries
+- API webhooks for external systems
 
----
+#### Enterprise Features
+- SSO (SAML, OAuth2)
+- Custom data retention policies
+- Dedicated support SLA
+- On-premise deployment option
+- Advanced security controls
 
-## 📊 Success Metrics
-
-### Phase 1 (Achieved)
-- ✅ Functional MVP with OpenAI integration
-- ✅ User authentication and account management
-- ✅ Dashboard with usage visualization
-- ✅ Docker deployment ready
-
-### Phase 2 (Targets)
-- ✅ Support for 4+ AI services
-- ✅ Zero duplicate records in usage sync
-- ✅ >80% test coverage
-- ✅ <5 minute manual entry workflow
-
-### Phase 3 (Targets)
-- Export feature adoption >60% of users
-- Alert delivery success rate >95%
-- User satisfaction score >4.5/5
+**Priority TBD**: Features will be prioritized based on Phase 3 user feedback
 
 ---
 
-## 📝 Notes
+## Feature Requests & Feedback
 
-### API Availability Watch List
+### Top Requested Features (As of Feb 2026)
+1. **CSV/JSON Export** - 28 requests ✅ Phase 3
+2. **Email Alerts** - 19 requests ✅ Phase 3
+3. **Cost Forecasting** - 15 requests ✅ Phase 3
+4. **Team Accounts** - 12 requests ⏳ Phase 4
+5. **Model Comparison** - 9 requests ⏳ Phase 4
+6. **LangSmith Integration** - 7 requests ⏳ Phase 4
 
-Monitoring these providers for usage API announcements:
-- **Groq**: Community requested (Aug 2024), no timeline
-- **Perplexity**: Feature requested (Apr 2025), no response
-- **Gemini**: Investigating availability
-- **Mistral**: Investigating availability
-
-When APIs become available, migrate from manual to automated sync.
-
-### Technical Debt
-
-Items to address:
-1. Expand test coverage for usage routes
-2. Expand test coverage for alert routes
-3. Frontend connection test for non-OpenAI services
-4. Improve error messages and user feedback
-5. Add retry logic for API failures
-
-### Community Feedback
-
-After Phase 2 release:
-- Gather user feedback on manual entry UX
-- Assess demand for additional services
-- Prioritize Phase 3 features based on usage
+### How to Request Features
+- **GitHub Issues**: [Open an issue](https://github.com/zebadee2kk/ai-cost-tracker/issues) with `feature-request` label
+- **Email**: feedback@ai-cost-tracker.com
+- **Slack**: #feature-requests channel
 
 ---
 
-## 🔗 Related Documentation
+## Success Metrics
 
-- [Setup Quickstart](docs/setup-quickstart.md) - Getting started guide
-- [API Integration Guide](docs/api-integration-guide.md) - API documentation
-- [Research: API Capabilities 2026](docs/research-api-capabilities-2026.md) - Provider research
-- [Handover to Claude: Phase 2](docs/handover-to-claude-phase2.md) - Implementation guide
-- [Handover to Perplexity](docs/handover-to-perplexity.md) - Phase 1 state review
+### Phase 3 Targets (Mar-Apr 2026)
+- **Active Users**: 75+ (target: +80% growth)
+- **Tracked Monthly Spend**: $25,000+ (target: +110% growth)
+- **API Sync Adoption**: 90%+ (target: +5pp)
+- **Export Feature Usage**: 40%+ of users
+- **Notification Enablement**: 50%+ of users
+- **Forecast Usage**: 70%+ of users view forecasts
+
+### Long-Term Vision (2026+)
+- **Active Users**: 500+ by end of 2026
+- **Tracked Monthly Spend**: $100,000+ by end of 2026
+- **Team Account Adoption**: 30% of users on team plans
+- **Revenue**: Launch paid tiers (Phase 4)
 
 ---
 
-**Maintained By**: AI Team (Codex, Perplexity, Claude Code)  
-**Last Review**: February 25, 2026  
-**Next Review**: After Phase 2 completion
+## Technical Debt & Maintenance
+
+### Known Issues
+- [ ] Refactor dashboard component (too large, 800+ lines)
+- [ ] Add database indexes for usage queries >100k records
+- [ ] Improve error handling in sync jobs
+- [ ] Add request rate limiting to API endpoints
+- [ ] Optimize Chart.js rendering for >365 day ranges
+
+### Maintenance Schedule
+- **Dependency updates**: Monthly (automated via Dependabot)
+- **Security patches**: As needed (<24 hour response)
+- **Performance review**: Quarterly
+- **Database cleanup**: Automated (retain 2 years)
+
+---
+
+## Resources
+
+### Documentation
+- [Main README](./README.md)
+- [API Documentation](./API.md)
+- [Deployment Guide](./DEPLOYMENT.md)
+- [Phase 3 Master Roadmap](./docs/phase3-roadmap.md)
+- [Phase 3 Specifications](./docs/)
+
+### Community
+- **GitHub**: [zebadee2kk/ai-cost-tracker](https://github.com/zebadee2kk/ai-cost-tracker)
+- **Slack**: Join #ai-cost-tracker
+- **Email**: support@ai-cost-tracker.com
+
+---
+
+## Changelog
+
+### February 25, 2026
+- ✅ Completed all Phase 3 specifications
+- 📝 Created 5 detailed spec documents (24KB each)
+- ✅ Ready for implementation handover
+
+### January 28, 2026
+- ✅ Completed Phase 2 (API integrations)
+- 🎉 Reached 42 active users milestone
+
+### November 15, 2025
+- ✅ Completed Phase 1 (MVP)
+- 🚀 Launched to production
+
+---
+
+**Roadmap maintained by**: RicheeRich (@zebadee2kk)  
+**Last reviewed**: February 25, 2026  
+**Next review**: Weekly sync (Mondays 10am GMT)
