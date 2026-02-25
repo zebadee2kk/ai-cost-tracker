@@ -23,6 +23,9 @@ class User(db.Model):
 
     # Relationships
     accounts = db.relationship("Account", back_populates="user", lazy="dynamic")
+    notification_preferences = db.relationship(
+        "NotificationPreference", back_populates="user", lazy="dynamic"
+    )
 
     def set_password(self, password: str):
         self.password_hash = bcrypt.hashpw(
