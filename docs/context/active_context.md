@@ -3,6 +3,8 @@
 ## 📝 Current Focus
 - [x] Phase 1 MVP — complete and **running locally** (2026-02-25)
 - [x] Runtime bugs fixed — app verified working end-to-end
+- [x] npm vulnerabilities resolved — 0 vulnerabilities (2026-02-25)
+- [x] Local dev environment cleaned up — processes stopped, venv + node_modules removed (2026-02-25)
 - [ ] Phase 2 — Anthropic, Groq, Perplexity service integrations (planning with Perplexity)
 - [ ] Phase 2 — Wire new services into sync job
 - [ ] Phase 2 — Add local LLM services (Ollama etc.) as manual-tracking entries

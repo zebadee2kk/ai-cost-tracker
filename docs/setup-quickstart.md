@@ -116,6 +116,58 @@ docker-compose up
 
 ---
 
+## Stopping & Cleaning Up Local Dev Environment
+
+### Stop Running Processes
+
+```bash
+# Kill Flask backend (port 5000) and React dev server (port 3000)
+kill $(lsof -ti :5000) 2>/dev/null
+kill $(lsof -ti :3000) 2>/dev/null
+
+# Verify ports are free
+lsof -i :5000 -i :3000 | grep LISTEN
+# (no output = all clear)
+```
+
+### Free Up Disk Space
+
+The installed dependencies are large (~555 MB) but fully regenerable from lock files.
+Delete them when not actively developing:
+
+```bash
+# Remove Python virtual environment (~103 MB)
+rm -rf backend/venv
+
+# Remove Node.js dependencies (~452 MB)
+rm -rf frontend/node_modules
+```
+
+> All source code is tracked in git. Nothing above is irreversible.
+
+### Restore After Cleanup
+
+```bash
+# Backend
+cd backend
+python3.11 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+flask run
+
+# Frontend (new terminal)
+cd frontend
+. ~/.nvm/nvm.sh   # load nvm if not in PATH
+npm install
+npm start
+```
+
+> **macOS note:** Use `python3.11 -m venv venv` (not `python -m venv`) to ensure
+> the Homebrew Python 3.11 binary is used. Node.js must be installed via nvm —
+> `brew install node` is unreliable on macOS 13 (Ventura).
+
+---
+
 ## Environment Variables (.env)
 
 ```bash
