@@ -1,9 +1,11 @@
 # Active Context & Scratchpad
 
 ## 📝 Current Focus
-- [x] Phase 1 MVP — complete (all 51 files created, 2026-02-25)
-- [ ] Phase 2 — Anthropic, Groq, Perplexity service integrations
+- [x] Phase 1 MVP — complete and **running locally** (2026-02-25)
+- [x] Runtime bugs fixed — app verified working end-to-end
+- [ ] Phase 2 — Anthropic, Groq, Perplexity service integrations (planning with Perplexity)
 - [ ] Phase 2 — Wire new services into sync job
+- [ ] Phase 2 — Add local LLM services (Ollama etc.) as manual-tracking entries
 - [ ] Phase 3 — Email/webhook alerts, CSV export
 
 ## 🧠 Memory Bank
@@ -21,6 +23,26 @@
 - DB seed script: 5 services (ChatGPT, Claude, Groq, GitHub Copilot, Perplexity)
 - Unit tests: encryption roundtrip, auth endpoints, account CRUD, OpenAI service mock
 
+### Runtime bugs fixed during first launch (2026-02-25)
+1. **`metadata` column name conflict** — SQLAlchemy's Declarative API reserves the name
+   `metadata` internally. Renamed Python attribute to `extra_data` while keeping the DB
+   column name as `metadata` via `db.Column("metadata", db.JSON, ...)`.
+   Affected: `models/usage_record.py`, `jobs/sync_usage.py`.
+
+2. **Python 3.10+ union type syntax** — `BackgroundScheduler | None` is not valid in
+   Python 3.9. Changed to `Optional[BackgroundScheduler]` from `typing`.
+   Affected: `jobs/sync_usage.py`.
+
+3. **pip not available outside venv** — Homebrew Python 3.11 had a broken pip install
+   in the global environment. Resolved by always using `python3.11 -m venv` first;
+   pip works correctly inside the venv.
+
+4. **Node.js installation** — `brew install node` / `node@20` repeatedly crashed on
+   macOS 13 (Ventura) because it tried to compile Python 3.13 as a dependency.
+   Resolved by installing Node via **nvm** (pre-built binary, no compilation):
+   `curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash`
+   then `. ~/.nvm/nvm.sh && nvm install 20`.
+
 ### Key architectural decisions
 - SQLite for dev/MVP, PostgreSQL for production (DATABASE_URL env switch)
 - Stateless JWT (no server-side sessions) — logout handled client-side
@@ -29,12 +51,34 @@
 - Background sync is opt-in: call `start_scheduler(app)` to enable
 - Base service class handles retry/backoff; all service clients inherit from it
 
+### Service integration status
+| Service        | Key storage | Usage sync | Notes                            |
+|---------------|-------------|------------|----------------------------------|
+| ChatGPT        | ✅ encrypted | ✅ live    | OpenAI billing API               |
+| Claude         | ✅ encrypted | ❌ Phase 2 | No Anthropic billing endpoint    |
+| Groq           | ✅ encrypted | ❌ Phase 2 | Track per-request via response   |
+| Perplexity     | ✅ encrypted | ❌ Phase 2 | Track per-request via response   |
+| GitHub Copilot | ✅ encrypted | ❌ Phase 2 | Manual / subscription tracking   |
+| Local LLMs     | ❌ not seeded | ❌ Phase 2 | Ollama etc. — to be added        |
+
+### How to restart the app (local dev)
+```bash
+# Terminal 1 — Backend
+cd /path/to/ai-cost-tracker/backend
+FLASK_APP=app.py venv/bin/flask run --host=127.0.0.1 --port=5000
+
+# Terminal 2 — Frontend
+cd /path/to/ai-cost-tracker/frontend
+. ~/.nvm/nvm.sh && npm start
+```
+
 ### File structure
 ```
 backend/
 ├── app.py              Flask app factory
 ├── config.py           Dev/Prod/Test configs
 ├── requirements.txt
+├── migrations/         Alembic migrations (generated on first run)
 ├── models/             User, Service, Account, UsageRecord, Alert, CostProjection
 ├── routes/             auth, accounts, services, usage, alerts
 ├── services/           base_service, openai_service

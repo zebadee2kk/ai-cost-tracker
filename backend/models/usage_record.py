@@ -29,7 +29,8 @@ class UsageRecord(db.Model):
     api_calls = db.Column(db.Integer, default=1)
     request_type = db.Column(db.String(100), nullable=True)
     # Flexible JSON for service-specific data (model name, input/output tokens, etc.)
-    metadata = db.Column(db.JSON, nullable=True, default=dict)
+    # Named 'extra_data' because 'metadata' is reserved by SQLAlchemy's Declarative API
+    extra_data = db.Column("metadata", db.JSON, nullable=True, default=dict)
 
     created_at = db.Column(
         db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
@@ -53,7 +54,7 @@ class UsageRecord(db.Model):
             "sessions_active": self.sessions_active,
             "api_calls": self.api_calls,
             "request_type": self.request_type,
-            "metadata": self.metadata,
+            "metadata": self.extra_data,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

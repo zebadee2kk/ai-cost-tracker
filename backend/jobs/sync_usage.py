@@ -7,12 +7,13 @@ Start it by calling start_scheduler(app) from app.py or run.py.
 
 import logging
 from datetime import date, datetime, timezone
+from typing import Optional
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
 logger = logging.getLogger(__name__)
 
-_scheduler: BackgroundScheduler | None = None
+_scheduler: Optional[BackgroundScheduler] = None
 
 
 def start_scheduler(app):
@@ -96,7 +97,7 @@ def _sync_all_accounts(app):
                     cost_currency="USD",
                     api_calls=1,
                     request_type="daily_sync",
-                    metadata={"line_items": day_data.get("line_items", [])},
+                    extra_data={"line_items": day_data.get("line_items", [])},
                 )
                 db.session.add(record)
 
