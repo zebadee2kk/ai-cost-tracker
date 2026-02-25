@@ -6,6 +6,7 @@ import {
   testAccount,
   getServices,
 } from "../services/api";
+import ManualEntryModal from "./ManualEntryModal";
 
 export default function AccountManager({ onAccountsChange }) {
   const [accounts, setAccounts] = useState([]);
@@ -15,6 +16,7 @@ export default function AccountManager({ onAccountsChange }) {
   const [formError, setFormError] = useState("");
   const [testResults, setTestResults] = useState({});
   const [loading, setLoading] = useState(false);
+  const [manualEntryAccount, setManualEntryAccount] = useState(null);
 
   useEffect(() => {
     Promise.all([getAccounts(), getServices()]).then(([accRes, svcRes]) => {
@@ -109,11 +111,20 @@ export default function AccountManager({ onAccountsChange }) {
               </div>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button className="btn-ghost" style={{ fontSize: "0.8rem" }} onClick={() => handleTest(acc.id)}>Test</button>
+                <button className="btn-ghost" style={{ fontSize: "0.8rem" }} onClick={() => setManualEntryAccount(acc)}>+ Manual Entry</button>
                 <button className="btn-danger" style={{ fontSize: "0.8rem" }} onClick={() => handleDelete(acc.id)}>Delete</button>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {manualEntryAccount && (
+        <ManualEntryModal
+          account={manualEntryAccount}
+          onClose={() => setManualEntryAccount(null)}
+          onSuccess={refresh}
+        />
       )}
     </div>
   );
