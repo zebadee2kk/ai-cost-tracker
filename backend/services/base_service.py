@@ -14,6 +14,14 @@ class ServiceError(Exception):
     """Raised for API-level errors from an AI service."""
 
 
+class AuthenticationError(ServiceError):
+    """Raised when API key is invalid or lacks required permissions."""
+
+
+class RateLimitError(ServiceError):
+    """Raised when the provider's rate limit is exceeded."""
+
+
 class BaseService(ABC):
     """
     All service integrations inherit from this class.
