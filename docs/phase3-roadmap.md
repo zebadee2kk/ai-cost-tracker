@@ -65,7 +65,7 @@ Transform the AI Cost Tracker from a monitoring tool into a comprehensive cost m
 
 #### Deliverables
 1. ✅ **Email Notification Service** (Week 4-5)
-   - Email provider integration (SendGrid/SES/Mailgun)
+   - Email provider integration (SendGrid/SES)
    - Template system for alert emails
    - User notification preferences
    - Rate limiting and throttling
@@ -95,13 +95,13 @@ Transform the AI Cost Tracker from a monitoring tool into a comprehensive cost m
 
 #### Deliverables
 1. ✅ **Cost Forecasting** (Week 7-8)
-   - Time-series prediction models (linear regression/moving average)
+   - Time-series prediction models (linear regression)
    - Monthly/quarterly cost projections
-   - Confidence intervals and uncertainty
+   - Confidence intervals
    - "At this rate" calculations
 
 2. ✅ **Anomaly Detection** (Week 8-9)
-   - Statistical threshold-based detection (Z-score)
+   - Statistical threshold-based detection
    - Usage spike identification
    - Unusual pattern alerts
    - Historical comparison visualizations
@@ -120,103 +120,118 @@ Transform the AI Cost Tracker from a monitoring tool into a comprehensive cost m
 
 ---
 
-## 📋 Feature Summary
-
-### Priority 0 Features
-
-#### 1. CSV/JSON Export System
-**Spec**: [phase3-export-spec.md](./phase3-export-spec.md)
-
-- Export all usage data with filters
-- Support CSV and JSON formats
-- Streaming for large datasets
-- Frontend download UI
-
-#### 2. Data Source Visual Indicators
-**Spec**: [phase3-visual-indicators-spec.md](./phase3-visual-indicators-spec.md)
-
-- Visual badges for API vs Manual data
-- Chart.js annotations
-- Color-coded UI elements
-- Filtering by source type
-
----
-
-### Priority 1 Features
-
-#### 3. GitHub Actions CI/CD Pipeline
-**Spec**: [phase3-ci-guide.md](./phase3-ci-guide.md)
-
-- Automated testing on PR/merge
-- Coverage reporting (>80% threshold)
-- Docker image builds
-- Security scanning
-
-#### 4. Alert Notifications
-**Spec**: [phase3-notifications-spec.md](./phase3-notifications-spec.md)
-
-- Email notifications (SendGrid/SES/Mailgun)
-- Webhook support (Slack/Discord/Teams)
-- Configurable thresholds
-- Rate limiting
-
----
-
-### Priority 2 Features
-
-#### 5. Enhanced Analytics
-**Spec**: [phase3-analytics-spec.md](./phase3-analytics-spec.md)
-
-- Cost forecasting (30/60/90 days)
-- Anomaly detection (statistical)
-- Trend analysis
-- Budget tracking UI
-
----
-
-## 🔐 Security Considerations
-
-- Encrypt email credentials (same as API keys)
-- Store webhook URLs encrypted
-- Rate limit exports and notifications
-- Audit logging for all actions
-- No sensitive data in notifications
-
----
-
 ## 📊 Success Metrics
 
-| Metric | Target |
-|--------|--------|
-| Export Adoption | >60% of users |
-| Alert Delivery Success | >95% |
-| Forecast Accuracy | <15% MAPE |
-| Anomaly Detection Precision | <10% false positives |
-| CI Pipeline Speed | <5 min total |
-| Test Coverage | >80% backend, >70% frontend |
+### Phase 3 KPIs
+
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| **Export Adoption** | >60% of users | Track export endpoint usage |
+| **Alert Delivery Success** | >95% | Log delivery attempts vs. successes |
+| **Forecast Accuracy** | <15% MAPE | Compare predictions to actuals monthly |
+| **Anomaly Detection Precision** | <10% false positives | User feedback on false alarms |
+| **CI Pipeline Speed** | <5 min total | GitHub Actions run time |
+| **Test Coverage** | >80% backend, >70% frontend | Coverage reports in CI |
 
 ---
 
-## ✅ Definition of Done
+## 🛠️ Technical Debt & Improvements
 
-### Phase 3 Complete When:
-- ✅ All 5 feature specs implemented
-- ✅ >80% test coverage maintained
-- ✅ Documentation complete
-- ✅ CI/CD pipeline operational
-- ✅ User acceptance testing passed
-- ✅ Production deployment successful
+### From Phase 2
+- ✅ Fix pre-existing `test_accounts.py` failures (3 tests)
+- ✅ Wire `ManualEntryModal` into `AccountManager.jsx`
+- ⏳ Extend connection test for all services (Phase 3.1)
+
+### New in Phase 3
+- Implement retry logic for API sync failures
+- Add pagination to usage history endpoint
+- Optimize Chart.js rendering for large datasets
+- Add database indexes for export queries
+- Implement caching for forecast calculations
 
 ---
 
-## 🔄 Next Steps
+## 📚 Documentation Updates Required
 
-1. Review and approve roadmap
-2. Create GitHub issues for each feature
-3. Assign Sprint 3.1 to implementation team
-4. Begin development
+1. **User Guides**:
+   - Export feature walkthrough
+   - Setting up alert notifications
+   - Understanding forecast predictions
+
+2. **Admin Guides**:
+   - Configuring email service (SendGrid/SES)
+   - Setting up webhook integrations
+   - GitHub Actions configuration
+
+3. **API Documentation**:
+   - Export endpoints
+   - Alert configuration endpoints
+   - Notification webhook formats
+
+---
+
+## 🔄 Migration Path & Rollout
+
+### Phase 3.1 (Export & Indicators)
+- No database migrations required
+- No breaking API changes
+- Feature flags: `ENABLE_EXPORT`, `ENABLE_VISUAL_INDICATORS`
+
+### Phase 3.2 (Notifications)
+- **Migration**: Add `notification_preferences` table
+- **Migration**: Add `alert_history` table
+- Feature flag: `ENABLE_NOTIFICATIONS`
+
+### Phase 3.3 (Analytics)
+- **Migration**: Add `cost_forecasts` table (optional)
+- **Migration**: Add `anomaly_events` table
+- Background jobs for periodic forecast calculation
+
+---
+
+## ✅ Definition of Done (Phase 3)
+
+### Sprint 3.1
+- ✅ Users can export data in CSV and JSON formats
+- ✅ Manual entries have visual badges in UI
+- ✅ Chart.js shows annotations for data sources
+- ✅ CI pipeline runs on all PRs with >80% coverage
+- ✅ Documentation updated for export feature
+- ✅ Tests passing for all new features
+
+### Sprint 3.2
+- ✅ Email alerts delivered successfully
+- ✅ Slack, Discord, Teams webhooks functional
+- ✅ Alert configuration UI complete
+- ✅ Rate limiting prevents notification spam
+- ✅ Alert history viewable in dashboard
+
+### Sprint 3.3
+- ✅ 30/60/90-day cost forecasts displayed
+- ✅ Anomaly detection identifies usage spikes
+- ✅ Enhanced analytics dashboard live
+- ✅ Budget tracking UI functional
+- ✅ Performance meets <2s page load target
+
+---
+
+## 🎉 Post-Phase 3 Roadmap Preview
+
+### Phase 4: Enterprise & Scale (Q3 2026)
+- Multi-user support (teams/organizations)
+- Role-based access control (RBAC)
+- SSO integration (SAML, OAuth)
+- White-label customization
+- Advanced ML-based forecasting
+- Redis caching layer
 
 ---
 
 **Status**: 📋 Planning Complete | Ready for Implementation  
-**Contact**: [@zebadee2kk](https://github.com/zebadee2kk)
+**Next Steps**: 
+1. Review and approve roadmap
+2. Assign Sprint 3.1 to implementation team
+3. Create GitHub project board with issues
+4. Begin development!
+
+**Questions?** Contact [@zebadee2kk](https://github.com/zebadee2kk)
