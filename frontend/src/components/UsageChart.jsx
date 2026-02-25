@@ -9,16 +9,81 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import { Bar } from "react-chartjs-2";
+import { Bar, Line } from "react-chartjs-2";
+import { getChartDatasetConfig, getTooltipConfig, getSourceLegendLabels } from "../utils/chartConfig";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend);
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Tooltip,
+  Legend
+);
 
-export default function UsageChart({ records }) {
-  // Aggregate cost per day from usage history records
+/**
+ * UsageChart renders either a grouped-by-day Bar chart (when records lack
+ * source information) or a Line chart with per-point source styling.
+ *
+ * Props:
+ *   records  Array of usage history records from /api/usage/history
+ *   mode     "bar" (default) | "line"
+ */
+export default function UsageChart({ records, mode = "bar" }) {
+  const sorted = (records || [])
+    .filter((r) => r.timestamp)
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+    .slice(-90); // cap at 90 days of data
+
+  if (!sorted.length) {
+    return (
+      <p className="muted" style={{ padding: "2rem", textAlign: "center" }}>
+        No usage data yet.
+      </p>
+    );
+  }
+
+  if (mode === "line") {
+    // Line chart with per-point source styling
+    const dataset = getChartDatasetConfig(sorted);
+    const chartData = { datasets: [dataset] };
+
+    const options = {
+      responsive: true,
+      maintainAspectRatio: true,
+      parsing: false,
+      plugins: {
+        tooltip: getTooltipConfig(),
+        legend: {
+          display: true,
+          labels: {
+            color: "#e0e0e0",
+            generateLabels: getSourceLegendLabels(),
+          },
+        },
+      },
+      scales: {
+        x: {
+          type: "category",
+          ticks: { color: "#888", maxRotation: 45 },
+          grid: { color: "#2a2a4a" },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: "#888", callback: (v) => `$${v.toFixed(2)}` },
+          grid: { color: "#2a2a4a" },
+        },
+      },
+    };
+
+    return <Line data={chartData} options={options} />;
+  }
+
+  // Default: grouped bar chart (aggregated by day)
   const dailyMap = {};
-  (records || []).forEach((r) => {
-    const day = r.timestamp?.slice(0, 10);
-    if (!day) return;
+  sorted.forEach((r) => {
+    const day = r.timestamp.slice(0, 10);
     dailyMap[day] = (dailyMap[day] || 0) + (r.cost || 0);
   });
 
@@ -63,10 +128,6 @@ export default function UsageChart({ records }) {
       },
     },
   };
-
-  if (!labels.length) {
-    return <p className="muted" style={{ padding: "2rem", textAlign: "center" }}>No usage data yet.</p>;
-  }
 
   return <Bar data={data} options={options} />;
 }
