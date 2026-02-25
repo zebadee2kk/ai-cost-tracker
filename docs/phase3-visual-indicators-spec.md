@@ -1,304 +1,257 @@
 # Phase 3: Data Source Visual Indicators - Technical Specification
 
-**Feature Priority**: P0 (Critical)  
+**Feature Priority**: P0 (Must Have)  
 **Estimated Effort**: 1 week  
-**Sprint**: 3.1  
-**Dependencies**: None
+**Dependencies**: None  
+**Target Sprint**: 3.1 (Week 2)
 
 ---
 
 ## 1. Problem Statement
 
 ### User Need
-Users need to:
-- Quickly distinguish between API-synced and manually entered data
-- Understand the reliability and source of cost information
-- Filter views to show only verified (API) or estimated (manual) data
-- Build trust in dashboard accuracy through transparent data provenance
+Users need to quickly distinguish between:
+- **API-synced data**: Automatically fetched from provider APIs (high confidence)
+- **Manual entries**: User-entered data (variable confidence, requires verification)
+
+Without visual indicators, users cannot:
+- Trust the accuracy of data sources
+- Identify which entries need verification
+- Understand data provenance for auditing
+- Filter views by data source
 
 ### Current Limitation
-No visual distinction exists between API-synced and manual entries. Users cannot tell which data points are verified vs. user-estimated, potentially causing confusion about data accuracy.
+- All usage data looks identical in the UI
+- No way to distinguish manual vs. API data visually
+- Users cannot filter by source type
+- Charts don't indicate data quality/source
+
+### Business Value
+- **High**: Improves data transparency and trust
+- Essential for audit/compliance scenarios
+- Reduces user confusion about data accuracy
+- Enables informed decision-making
 
 ---
 
-## 2. Best Practices
+## 2. Best Practices & Standards
 
-### UI/UX Patterns
+### Visual Indicator Design Principles
 
-**Badge/Label Design**:
-- Use color-coded badges for quick visual scanning
-- Include icons for accessibility and faster recognition
-- Maintain consistent placement across all views
-- Follow existing app color palette
+**Accessibility (WCAG 2.1 AA)**:
+- Don't rely on color alone (use icons + color)
+- Maintain 4.5:1 contrast ratio for text
+- Provide descriptive tooltips
+- Support keyboard navigation
 
-**Data Provenance Indicators**[cite:10]:
-- Blue/primary color for automated/verified data
-- Orange/warning color for manual/estimated data  
-- Gray for unknown/legacy data (if applicable)
-- Clear legends explaining meaning
+**Consistency**:
+- Use same badge design across all views
+- Consistent color palette (Material Design recommended)
+- Icon usage follows common patterns (🔄 for sync, ✏️ for manual)
 
-**Chart Annotations**[cite:13][cite:16]:
-- Use Chart.js annotation plugin for marking data points
-- Different point styles (circle vs. triangle) for sources
-- Hover tooltips with full metadata
-- Optional overlay lines/boxes for manual entry periods
+**Performance**:
+- Badges render client-side (no extra API calls)
+- CSS-based badges (avoid images)
+- Chart.js point styling (no external plugins for basic styling)
+
+### Chart.js Point Styling Patterns
+
+**Custom Point Styles**:
+```javascript
+{
+  datasets: [{
+    data: usageData,
+    pointStyle: (context) => {
+      const record = context.raw;
+      return record.source === 'manual' ? 'rectRot' : 'circle';
+    },
+    pointBackgroundColor: (context) => {
+      const record = context.raw;
+      return record.source === 'manual' ? '#FF9800' : '#2196F3';
+    },
+    pointRadius: (context) => {
+      return context.raw.source === 'manual' ? 6 : 4;
+    },
+    pointBorderColor: '#FFFFFF',
+    pointBorderWidth: 2
+  }]
+}
+```
+
+**Chart.js Annotation Plugin** (Optional Enhancement):
+- Adds text labels or boxes to chart areas
+- Can highlight manual entry periods
+- Requires `chartjs-plugin-annotation` dependency
 
 ---
 
 ## 3. Technology Options
 
-### Chart.js Plugins
-
-| Plugin | Purpose | Pros | Cons | Recommendation |
-|--------|---------|------|------|----------------|
-| **chartjs-plugin-annotation** | Add labels, lines, boxes to charts | Mature, well-documented | Requires separate install | ✅ **Recommended** |
-| **chartjs-plugin-datalabels** | Labels on data points | Good for value display | Not ideal for badges | ❌ Not needed |
-| **Custom point styles** | Built-in Chart.js feature | No dependencies | Limited styling | ✅ **Use for basic indicators** |
-
 ### Badge Implementation
 
 | Approach | Pros | Cons | Recommendation |
 |----------|------|------|----------------|
-| **CSS-only badges** | Lightweight, fast | Manual positioning | ✅ **Recommended for tables** |
-| **SVG icons** | Scalable, crisp | More complex | ✅ **Use for charts** |
-| **Emoji indicators** | Zero dependencies | Not professional | ❌ Avoid |
+| **CSS + HTML** | No dependencies, customizable, fast | Manual styling | ✅ Use this |
+| **Material-UI Chip** | Pre-styled, consistent | Large dependency | ❌ Overkill |
+| **Custom Icon Library** | Professional icons | Extra dependency | ❌ Unnecessary |
+
+**Verdict**: Use CSS-based badges with emoji/Unicode icons.
+
+### Chart Styling
+
+| Approach | Pros | Cons | Recommendation |
+|----------|------|------|----------------|
+| **Chart.js Scriptable Options** | Built-in, flexible, no deps | Requires data format changes | ✅ Use this |
+| **chartjs-plugin-annotation** | Powerful, feature-rich | Extra dependency (25kb) | ⚠️ Optional enhancement |
+| **Custom Canvas Overlay** | Ultimate control | High complexity | ❌ Too complex |
+
+**Verdict**: Use Chart.js scriptable options (built-in). Add annotation plugin only if advanced features needed.
 
 ---
 
 ## 4. Architecture
 
-### Component Structure
+### Component Hierarchy
 
 ```
-frontend/src/
-├── components/
-│   ├── DataSourceBadge.jsx          ← NEW: Reusable badge component
-│   ├── UsageChart.jsx               ← MODIFY: Add point styles
-│   ├── UsageTable.jsx               ← MODIFY: Add badges to rows
-│   └── DataSourceFilter.jsx         ← NEW: Filter toggle
-├── styles/
-│   └── badges.css                   ← NEW: Badge styles
-└── utils/
-    └── chartConfig.js               ← MODIFY: Add custom point styles
+┌───────────────────────────────────────────────┐
+│        DashboardPage / AnalyticsPage         │
+│                                               │
+│  ┌─────────────────────────────────────┐    │
+│  │      UsageChart Component           │    │
+│  │  - Chart.js with point styling     │    │
+│  │  - Legend shows badge colors       │    │
+│  │  - Tooltips show source info       │    │
+│  └─────────────────────────────────────┘    │
+│                                               │
+│  ┌─────────────────────────────────────┐    │
+│  │    UsageTable Component             │    │
+│  │  - Rows with SourceBadge component │    │
+│  │  - Filter by source toggle         │    │
+│  └─────────────────────────────────────┘    │
+│                                               │
+│  ┌─────────────────────────────────────┐    │
+│  │      SourceBadge Component          │    │
+│  │  Props: source ('api' | 'manual')  │    │
+│  │  Renders: Badge with icon + label  │    │
+│  └─────────────────────────────────────┘    │
+└───────────────────────────────────────────────┘
 ```
 
 ### Data Flow
 
-```
-UsageRecord (DB)
-  │
-  ├─ source: 'api' | 'manual'
-  │
-  ↓
-API Response
-  │
-  └──> Frontend Component
-        │
-        ├──> UsageTable
-        │     └──> <DataSourceBadge source={record.source} />
-        │
-        └──> UsageChart
-              └──> pointStyle: source === 'api' ? 'circle' : 'triangle'
-                  pointBackgroundColor: source === 'api' ? '#0066CC' : '#FF8C00'
-```
+1. **Backend**: Already provides `source` field in usage records (Phase 2)
+2. **API Response**: Includes `source: 'api'` or `source: 'manual'`
+3. **Frontend State**: Stores records with source info
+4. **Rendering**: 
+   - Table rows show `<SourceBadge source={record.source} />`
+   - Chart points styled based on `record.source`
+5. **Filtering**: User toggles filter, state updates, view re-renders
 
 ---
 
-## 5. Design Specification
+## 5. UI Design Specification
 
-### Color Palette
+### Badge Component Design
+
+#### Visual Design
+
+**API Badge**:
+```
+┌─────────────┐
+│ 🔄 API      │  ← Blue background (#2196F3)
+└─────────────┘     White text (#FFFFFF)
+                    12px padding, 4px border-radius
+```
+
+**Manual Badge**:
+```
+┌─────────────┐
+│ ✏️ Manual   │  ← Orange background (#FF9800)
+└─────────────┘     White text (#FFFFFF)
+                    12px padding, 4px border-radius
+```
+
+#### CSS Implementation
 
 ```css
-/* API Data - Blue (verified, automated) */
---badge-api-bg: #E3F2FD;        /* Light blue background */
---badge-api-text: #0D47A1;      /* Dark blue text */
---badge-api-border: #1976D2;    /* Medium blue border */
---chart-api-color: #0066CC;     /* Chart point color */
+/* frontend/src/components/SourceBadge.css */
 
-/* Manual Data - Orange (user-entered, estimated) */
---badge-manual-bg: #FFF3E0;     /* Light orange background */
---badge-manual-text: #E65100;   /* Dark orange text */
---badge-manual-border: #FB8C00; /* Medium orange border */
---chart-manual-color: #FF8C00;  /* Chart point color */
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #FFFFFF;
+  white-space: nowrap;
+}
 
-/* Unknown/Legacy - Gray */
---badge-unknown-bg: #F5F5F5;
---badge-unknown-text: #616161;
---badge-unknown-border: #9E9E9E;
+.source-badge.api {
+  background-color: #2196F3; /* Material Blue */
+}
+
+.source-badge.manual {
+  background-color: #FF9800; /* Material Orange */
+}
+
+.source-badge-icon {
+  font-size: 14px;
+  line-height: 1;
+}
 ```
 
-### Badge Mockup
-
-```
-┌──────────────────────────────────────────┐
-│ Date       Cost    Tokens    Source        │
-├──────────────────────────────────────────┤
-│ 2026-02-20 $1.23  150000    [🔄 API]       │  <- Blue badge
-│ 2026-02-21 $5.00  0         [✏️ Manual]    │  <- Orange badge
-│ 2026-02-22 $0.89  120000    [🔄 API]       │
-└──────────────────────────────────────────┘
-```
-
-### Chart Point Styles
-
-```
-API Data:      ● (filled circle, blue)
-Manual Data:   ▲ (filled triangle, orange)
-
-Hover tooltip:
-┌──────────────────────┐
-│ 2026-02-20              │
-│ Cost: $1.23             │
-│ Tokens: 150,000         │
-│ Source: API (🔄)        │
-│ Last synced: 2 hrs ago  │
-└──────────────────────┘
-```
-
----
-
-## 6. Frontend Implementation
-
-### Component: `DataSourceBadge.jsx`
+#### React Component
 
 ```jsx
-import React from 'react';
-import './badges.css';
+// frontend/src/components/SourceBadge.jsx
 
-const DataSourceBadge = ({ source, showIcon = true, showLabel = true, size = 'medium' }) => {
+import React from 'react';
+import './SourceBadge.css';
+
+const SourceBadge = ({ source, tooltip = true }) => {
   const config = {
     api: {
       icon: '🔄',
       label: 'API',
-      className: 'badge-api',
-      title: 'Automatically synced from service API'
+      className: 'api',
+      tooltip: 'Automatically synced from provider API'
     },
     manual: {
       icon: '✏️',
       label: 'Manual',
-      className: 'badge-manual',
-      title: 'Manually entered by user'
-    },
-    unknown: {
-      icon: '❓',
-      label: 'Unknown',
-      className: 'badge-unknown',
-      title: 'Source not specified'
+      className: 'manual',
+      tooltip: 'Manually entered by user'
     }
   };
 
-  const { icon, label, className, title } = config[source] || config.unknown;
+  const { icon, label, className, tooltip: tooltipText } = config[source] || config.manual;
 
   return (
     <span 
-      className={`data-source-badge ${className} badge-${size}`}
-      title={title}
-      role="img"
+      className={`source-badge ${className}`}
+      title={tooltip ? tooltipText : ''}
       aria-label={`Data source: ${label}`}
     >
-      {showIcon && <span className="badge-icon">{icon}</span>}
-      {showLabel && <span className="badge-label">{label}</span>}
+      <span className="source-badge-icon" aria-hidden="true">{icon}</span>
+      <span>{label}</span>
     </span>
   );
 };
 
-export default DataSourceBadge;
+export default SourceBadge;
 ```
 
-### Styles: `badges.css`
-
-```css
-/* Base badge styles */
-.data-source-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-  border: 1px solid;
-  transition: all 0.2s ease;
-}
-
-/* Size variants */
-.badge-small {
-  padding: 2px 6px;
-  font-size: 10px;
-  border-radius: 8px;
-}
-
-.badge-medium {
-  padding: 4px 8px;
-  font-size: 12px;
-}
-
-.badge-large {
-  padding: 6px 12px;
-  font-size: 14px;
-}
-
-/* API badge - Blue */
-.badge-api {
-  background-color: #E3F2FD;
-  color: #0D47A1;
-  border-color: #1976D2;
-}
-
-.badge-api:hover {
-  background-color: #BBDEFB;
-}
-
-/* Manual badge - Orange */
-.badge-manual {
-  background-color: #FFF3E0;
-  color: #E65100;
-  border-color: #FB8C00;
-}
-
-.badge-manual:hover {
-  background-color: #FFE0B2;
-}
-
-/* Unknown badge - Gray */
-.badge-unknown {
-  background-color: #F5F5F5;
-  color: #616161;
-  border-color: #9E9E9E;
-}
-
-/* Badge icon */
-.badge-icon {
-  font-size: 1.1em;
-  line-height: 1;
-}
-
-/* Badge label */
-.badge-label {
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* Compact variant (icon only) */
-.badge-compact {
-  padding: 4px;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  justify-content: center;
-}
-
-.badge-compact .badge-label {
-  display: none;
-}
-```
-
-### Modified: `UsageTable.jsx`
+### Usage Table Integration
 
 ```jsx
-import DataSourceBadge from './DataSourceBadge';
+// frontend/src/components/UsageTable.jsx
 
-const UsageTable = ({ usageData }) => {
+import SourceBadge from './SourceBadge';
+
+function UsageTable({ records }) {
   return (
     <table className="usage-table">
       <thead>
@@ -311,365 +264,290 @@ const UsageTable = ({ usageData }) => {
         </tr>
       </thead>
       <tbody>
-        {usageData.map((record) => (
+        {records.map(record => (
           <tr key={record.id}>
-            <td>{new Date(record.timestamp).toLocaleDateString()}</td>
-            <td>{record.service_name}</td>
+            <td>{record.date}</td>
+            <td>{record.service}</td>
             <td>${record.cost.toFixed(2)}</td>
-            <td>{record.tokens?.toLocaleString() || 'N/A'}</td>
+            <td>{record.tokens.toLocaleString()}</td>
             <td>
-              <DataSourceBadge 
-                source={record.source} 
-                size="small"
-              />
+              <SourceBadge source={record.source} />
             </td>
           </tr>
         ))}
       </tbody>
     </table>
   );
-};
+}
 ```
 
-### Modified: `UsageChart.jsx` (Chart.js Config)
+### Chart.js Integration
 
-```jsx
-import { Chart } from 'chart.js';
-import DataSourceBadge from './DataSourceBadge';
+```javascript
+// frontend/src/components/UsageChart.jsx
 
-const UsageChart = ({ usageData }) => {
-  // Separate data by source
-  const apiData = usageData.filter(d => d.source === 'api');
-  const manualData = usageData.filter(d => d.source === 'manual');
+import { Line } from 'react-chartjs-2';
 
-  const chartConfig = {
-    type: 'line',
-    data: {
-      datasets: [
-        {
-          label: 'API Data',
-          data: apiData.map(d => ({
-            x: d.timestamp,
-            y: d.cost
-          })),
-          borderColor: '#0066CC',
-          backgroundColor: 'rgba(0, 102, 204, 0.1)',
-          pointStyle: 'circle',
-          pointRadius: 5,
-          pointHoverRadius: 7,
-          pointBackgroundColor: '#0066CC'
-        },
-        {
-          label: 'Manual Entries',
-          data: manualData.map(d => ({
-            x: d.timestamp,
-            y: d.cost
-          })),
-          borderColor: '#FF8C00',
-          backgroundColor: 'rgba(255, 140, 0, 0.1)',
-          pointStyle: 'triangle',
-          pointRadius: 6,
-          pointHoverRadius: 8,
-          pointBackgroundColor: '#FF8C00',
-          borderDash: [5, 5]  // Dashed line for manual
-        }
-      ]
-    },
-    options: {
-      plugins: {
-        tooltip: {
-          callbacks: {
-            afterLabel: (context) => {
-              const dataPoint = context.dataset.data[context.dataIndex];
-              const record = usageData.find(r => 
-                r.timestamp === dataPoint.x && r.cost === dataPoint.y
-              );
-              
-              return [
-                `Source: ${record.source.toUpperCase()}`,
-                record.source === 'api' 
-                  ? `Synced: ${new Date(record.updated_at).toLocaleString()}`
-                  : `Added: ${new Date(record.created_at).toLocaleString()}`,
-                record.notes ? `Note: ${record.notes}` : ''
-              ].filter(Boolean);
-            }
-          }
-        },
-        legend: {
-          display: true,
-          labels: {
-            usePointStyle: true,
-            generateLabels: (chart) => [
+function UsageChart({ usageData }) {
+  const chartData = {
+    labels: usageData.map(d => d.date),
+    datasets: [{
+      label: 'Daily Cost',
+      data: usageData.map(d => ({
+        x: d.date,
+        y: d.cost,
+        source: d.source // Include source in data point
+      })),
+      borderColor: '#2196F3',
+      backgroundColor: 'rgba(33, 150, 243, 0.1)',
+      pointStyle: (context) => {
+        const source = context.raw?.source;
+        return source === 'manual' ? 'rectRot' : 'circle';
+      },
+      pointBackgroundColor: (context) => {
+        const source = context.raw?.source;
+        return source === 'manual' ? '#FF9800' : '#2196F3';
+      },
+      pointRadius: (context) => {
+        return context.raw?.source === 'manual' ? 6 : 4;
+      },
+      pointHoverRadius: 8,
+      pointBorderColor: '#FFFFFF',
+      pointBorderWidth: 2
+    }]
+  };
+
+  const options = {
+    plugins: {
+      legend: {
+        display: true,
+        labels: {
+          generateLabels: (chart) => {
+            return [
               {
-                text: '🔄 API Data (verified)',
-                fillStyle: '#0066CC',
-                strokeStyle: '#0066CC',
-                pointStyle: 'circle'
+                text: '🔄 API Data',
+                fillStyle: '#2196F3',
+                strokeStyle: '#2196F3'
               },
               {
-                text: '✏️ Manual Entries (estimated)',
-                fillStyle: '#FF8C00',
-                strokeStyle: '#FF8C00',
-                pointStyle: 'triangle'
+                text: '✏️ Manual Data',
+                fillStyle: '#FF9800',
+                strokeStyle: '#FF9800',
+                pointStyle: 'rectRot'
               }
-            ]
+            ];
+          }
+        }
+      },
+      tooltip: {
+        callbacks: {
+          afterLabel: (context) => {
+            const source = context.raw?.source;
+            return source === 'manual' 
+              ? 'Source: Manual Entry' 
+              : 'Source: API Sync';
           }
         }
       }
+    },
+    scales: {
+      x: { title: { display: true, text: 'Date' } },
+      y: { title: { display: true, text: 'Cost (USD)' } }
     }
   };
 
-  return <Chart {...chartConfig} />;
-};
+  return <Line data={chartData} options={options} />;
+}
 ```
 
-### Component: `DataSourceFilter.jsx`
+### Filter Toggle Component
 
 ```jsx
+// frontend/src/components/SourceFilter.jsx
+
 import React, { useState } from 'react';
 
-const DataSourceFilter = ({ onChange }) => {
-  const [filters, setFilters] = useState({
-    showAPI: true,
-    showManual: true
-  });
+function SourceFilter({ onFilterChange }) {
+  const [filter, setFilter] = useState('all');
 
-  const handleToggle = (source) => {
-    const newFilters = {
-      ...filters,
-      [source]: !filters[source]
-    };
-    setFilters(newFilters);
-    onChange(newFilters);
+  const handleChange = (newFilter) => {
+    setFilter(newFilter);
+    onFilterChange(newFilter);
   };
 
   return (
-    <div className="data-source-filter">
-      <label className="filter-label">Show:</label>
-      
-      <label className="filter-checkbox">
-        <input
-          type="checkbox"
-          checked={filters.showAPI}
-          onChange={() => handleToggle('showAPI')}
-        />
-        <span className="badge-api badge-small">🔄 API Data</span>
-      </label>
-      
-      <label className="filter-checkbox">
-        <input
-          type="checkbox"
-          checked={filters.showManual}
-          onChange={() => handleToggle('showManual')}
-        />
-        <span className="badge-manual badge-small">✏️ Manual</span>
-      </label>
+    <div className="source-filter">
+      <label>Show:</label>
+      <div className="filter-buttons">
+        <button 
+          className={filter === 'all' ? 'active' : ''}
+          onClick={() => handleChange('all')}
+        >
+          All Data
+        </button>
+        <button 
+          className={filter === 'api' ? 'active' : ''}
+          onClick={() => handleChange('api')}
+        >
+          🔄 API Only
+        </button>
+        <button 
+          className={filter === 'manual' ? 'active' : ''}
+          onClick={() => handleChange('manual')}
+        >
+          ✏️ Manual Only
+        </button>
+      </div>
     </div>
   );
-};
+}
 
-export default DataSourceFilter;
+export default SourceFilter;
 ```
 
 ---
 
-## 7. Backend Support (Optional Enhancement)
-
-### API Endpoint: Filter by Source
-
-**Modify**: `GET /api/usage?source=api|manual`
-
-```python
-# In backend/routes/usage.py
-
-@bp.route('/', methods=['GET'])
-@jwt_required()
-def get_usage():
-    # ... existing code ...
-    
-    # Add source filter
-    source_filter = request.args.get('source')
-    if source_filter in ['api', 'manual']:
-        query = query.filter(UsageRecord.source == source_filter)
-    
-    # ... rest of code ...
-```
-
----
-
-## 8. Testing Strategy
+## 6. Testing Strategy
 
 ### Unit Tests
 
-```jsx
-// DataSourceBadge.test.jsx
+```javascript
+// frontend/src/components/SourceBadge.test.jsx
+
 import { render, screen } from '@testing-library/react';
-import DataSourceBadge from './DataSourceBadge';
+import SourceBadge from './SourceBadge';
 
-test('renders API badge with correct styling', () => {
-  render(<DataSourceBadge source="api" />);
-  
-  const badge = screen.getByRole('img', { name: /API/i });
-  expect(badge).toHaveClass('badge-api');
-  expect(badge).toHaveTextContent('🔄');
-  expect(badge).toHaveTextContent('API');
+test('renders API badge correctly', () => {
+  render(<SourceBadge source="api" />);
+  expect(screen.getByText('API')).toBeInTheDocument();
+  expect(screen.getByText('🔄')).toBeInTheDocument();
 });
 
-test('renders manual badge with correct styling', () => {
-  render(<DataSourceBadge source="manual" />);
-  
-  const badge = screen.getByRole('img', { name: /Manual/i });
-  expect(badge).toHaveClass('badge-manual');
-  expect(badge).toHaveTextContent('✏️');
+test('renders manual badge correctly', () => {
+  render(<SourceBadge source="manual" />);
+  expect(screen.getByText('Manual')).toBeInTheDocument();
+  expect(screen.getByText('✏️')).toBeInTheDocument();
 });
 
-test('handles unknown source gracefully', () => {
-  render(<DataSourceBadge source="invalid" />);
-  
-  const badge = screen.getByRole('img');
-  expect(badge).toHaveClass('badge-unknown');
+test('applies correct CSS class', () => {
+  const { container } = render(<SourceBadge source="api" />);
+  expect(container.querySelector('.source-badge.api')).toBeInTheDocument();
 });
 
-test('supports icon-only mode', () => {
-  render(<DataSourceBadge source="api" showLabel={false} />);
-  
-  const badge = screen.getByRole('img');
-  expect(badge).toHaveTextContent('🔄');
-  expect(badge).not.toHaveTextContent('API');
+test('shows tooltip on hover', () => {
+  render(<SourceBadge source="api" tooltip={true} />);
+  const badge = screen.getByLabelText('Data source: API');
+  expect(badge).toHaveAttribute('title', 'Automatically synced from provider API');
+});
+```
+
+### Integration Tests
+
+```javascript
+// frontend/src/components/UsageChart.test.jsx
+
+import { render } from '@testing-library/react';
+import UsageChart from './UsageChart';
+
+test('chart renders with mixed data sources', () => {
+  const mockData = [
+    { date: '2026-02-01', cost: 10.50, source: 'api' },
+    { date: '2026-02-02', cost: 5.25, source: 'manual' },
+    { date: '2026-02-03', cost: 15.00, source: 'api' }
+  ];
+
+  const { container } = render(<UsageChart usageData={mockData} />);
+  expect(container.querySelector('canvas')).toBeInTheDocument();
 });
 ```
 
 ### Visual Regression Tests
 
-```jsx
-// Storybook stories for visual testing
-export const APIBadge = () => <DataSourceBadge source="api" />;
-export const ManualBadge = () => <DataSourceBadge source="manual" />;
-export const BadgeSizes = () => (
-  <div>
-    <DataSourceBadge source="api" size="small" />
-    <DataSourceBadge source="api" size="medium" />
-    <DataSourceBadge source="api" size="large" />
-  </div>
-);
-```
+```javascript
+// Using Percy or Chromatic
+import { percySnapshot } from '@percy/puppeteer';
 
-### Integration Tests
-
-```jsx
-test('table displays correct badges for mixed data', () => {
-  const mockData = [
-    { id: 1, source: 'api', cost: 1.23 },
-    { id: 2, source: 'manual', cost: 5.00 }
-  ];
-  
-  render(<UsageTable usageData={mockData} />);
-  
-  const apiBadges = screen.getAllByText(/API/i);
-  const manualBadges = screen.getAllByText(/Manual/i);
-  
-  expect(apiBadges).toHaveLength(1);
-  expect(manualBadges).toHaveLength(1);
+test('visual: source badges', async () => {
+  await page.goto('http://localhost:3000/dashboard');
+  await percySnapshot(page, 'Dashboard with Source Badges');
 });
 ```
 
 ---
 
-## 9. Implementation Effort
+## 7. Implementation Effort
 
-### Day 1-2: Core Components
-- Create `DataSourceBadge.jsx` component
-- Create `badges.css` styles
-- Write unit tests
+### Time Breakdown
 
-### Day 3: Table Integration
-- Modify `UsageTable.jsx` to display badges
-- Integrate into existing table views
-- Test with real data
-
-### Day 4: Chart Integration
-- Modify `UsageChart.jsx` with custom point styles
-- Add legend with icons
-- Enhance tooltips
-
-### Day 5: Filter & Polish
-- Create `DataSourceFilter.jsx` component
-- Wire up filtering logic
-- Visual QA and refinements
-- Documentation
+| Task | Effort | Notes |
+|------|--------|-------|
+| **SourceBadge component** | 0.5 days | React component + CSS |
+| **UsageChart point styling** | 1 day | Chart.js scriptable options |
+| **Filter toggle component** | 0.5 days | React component + state management |
+| **Integration into dashboard** | 1 day | Wire components into existing views |
+| **Testing** | 1 day | Unit + integration tests |
+| **Documentation** | 0.5 days | Component docs |
+| **Code review & QA** | 0.5 days | Review, bug fixes |
 
 **Total**: 5 days (1 week)
 
----
+### Acceptance Criteria
 
-## 10. Dependencies
-
-### Required
-- None (uses existing Chart.js 4)
-
-### Optional
-- `chartjs-plugin-annotation` (if adding box/line annotations)
-  ```bash
-  npm install chartjs-plugin-annotation
-  ```
-
----
-
-## 11. Risks & Mitigation
-
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| **Color contrast accessibility** | Medium | Low | Use WCAG AA compliant colors, test with tools |
-| **Icon rendering issues** | Low | Medium | Use SVG fallbacks, test across browsers |
-| **Chart performance with many points** | Medium | Low | Limit dataset size, add pagination |
-| **Inconsistent badge placement** | Low | Low | Create layout guidelines, use flexbox |
+- ✅ SourceBadge component renders correctly for both sources
+- ✅ Badges appear in usage table
+- ✅ Chart points styled differently for manual vs. API
+- ✅ Chart legend shows both source types
+- ✅ Tooltips display source information
+- ✅ Filter toggle works correctly
+- ✅ Accessible (keyboard nav, screen readers)
+- ✅ >80% test coverage for new components
+- ✅ Cross-browser tested (Chrome, Firefox, Safari)
 
 ---
 
-## 12. Accessibility Considerations
+## 8. Dependencies
 
-### WCAG Compliance
-- ✅ Color contrast ratio >4.5:1 for text
-- ✅ Don't rely solely on color (use icons + text)
-- ✅ Proper ARIA labels on badges
-- ✅ Keyboard accessible filter toggles
-- ✅ Screen reader friendly tooltips
+### Frontend Packages
+- `react` (existing)
+- `react-chartjs-2` (existing)
+- `chart.js` (existing)
 
-### Implementation
-```jsx
-<span 
-  className="badge-api"
-  role="img"
-  aria-label="Data source: API - automatically synced"
-  title="Automatically synced from service API"
->
-  🔄 API
-</span>
-```
+**No new dependencies required** ✅
+
+### Backend Changes
+**None required** - `source` field already exists (Phase 2) ✅
 
 ---
 
-## 13. Success Criteria
+## 9. Risks & Mitigation
 
-- ✅ All usage data displays source badges consistently
-- ✅ Charts use distinct point styles for API vs. manual data
-- ✅ Users can filter data by source type
-- ✅ Badges are accessible (WCAG AA compliant)
-- ✅ No performance degradation with 1000+ data points
-- ✅ Visual design approved by product owner
-- ✅ >90% user satisfaction in usability testing
+### Risk 1: Chart Performance with Large Datasets
+**Impact**: Medium  
+**Probability**: Low  
+**Mitigation**: Chart.js efficiently handles scriptable options. Test with 10k+ points.
 
----
+### Risk 2: Color Blindness Accessibility
+**Impact**: Medium  
+**Probability**: Medium  
+**Mitigation**: Use icons + color (not color alone). Test with color blindness simulator.
 
-## 14. Future Enhancements (Post-Phase 3)
-
-### Phase 4 Ideas
-- Confidence score indicator (e.g., ⭐⭐⭐⭐⭐ for API, ⭐⭐⭐ for manual)
-- Data quality dashboard showing API vs. manual ratio
-- Bulk actions: "Mark all as verified" button
-- Detailed data lineage view (when synced, by whom)
-- Color customization in user settings
+### Risk 3: Icon Rendering Issues (Emoji)
+**Impact**: Low  
+**Probability**: Low  
+**Mitigation**: Use Unicode emojis with fallback text. Test on Windows/Mac/Linux.
 
 ---
 
-**Status**: 📋 Specification Complete | Ready for Implementation
+## 10. Future Enhancements (Post-Phase 3)
+
+- **Confidence scores**: Show data quality metrics (e.g., "95% confident")
+- **Edit history**: Link badge to show when/who last modified
+- **Batch editing**: Bulk convert manual → API after provider API launches
+- **Custom badges**: User-defined labels for data sources
+- **Chart annotations**: Highlight date ranges with all-manual data
+
+---
+
+**Status**: ✅ Ready for Implementation  
+**Assigned To**: TBD  
+**Sprint**: 3.1 (Week 2)

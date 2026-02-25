@@ -1,125 +1,231 @@
 # Phase 3: CSV/JSON Export System - Technical Specification
 
-**Feature Priority**: P0 (Critical)  
+**Feature Priority**: P0 (Must Have)  
 **Estimated Effort**: 2 weeks  
-**Sprint**: 3.1  
-**Dependencies**: None
+**Dependencies**: None  
+**Target Sprint**: 3.1 (Weeks 1-2)
 
 ---
 
 ## 1. Problem Statement
 
 ### User Need
-Users need to:
-- Export usage data for external analysis (Excel, BI tools, accounting software)
-- Archive historical cost data for compliance and auditing
-- Share cost reports with stakeholders who don't have dashboard access
-- Perform custom calculations and visualizations outside the platform
-- Integrate AI cost data with existing financial reporting systems
+Users need to export their AI usage data for:
+- External analysis in Excel, Google Sheets, or BI tools
+- Compliance and audit requirements
+- Integration with accounting/finance systems
+- Backup and data portability
+- Custom reporting outside the application
 
 ### Current Limitation
-All usage data is locked in the dashboard with no export functionality.
+- No way to extract data from the system
+- Users cannot perform offline analysis
+- No data portability for users switching tools
+
+### Business Value
+- **High**: Most requested feature from Phase 2 feedback
+- Enables enterprise adoption (compliance requirements)
+- Increases user trust (no vendor lock-in)
+- Reduces support burden (users self-serve data needs)
 
 ---
 
-## 2. Best Practices
+## 2. Best Practices & Standards
 
-### Industry Standards
+### CSV Export Standards
 
-**CSV Format**[cite:6][cite:7]:
+**Format Requirements**:
 - UTF-8 encoding with BOM for Excel compatibility
-- RFC 4180 compliant (quoted fields, escaped commas)
+- RFC 4180 compliant (proper quoting, escaping)
 - Header row with descriptive column names
-- ISO 8601 date format (YYYY-MM-DD)
-- Consistent decimal precision (2 places for currency)
-- Metadata header (export date, filters, totals)
+- ISO 8601 dates (YYYY-MM-DD)
+- Decimal costs with 2 decimal places
+- Proper line endings (\r\n for Windows compatibility)
 
-**JSON Format**[cite:5][cite:7]:
-- Structured hierarchy (metadata + data array)
-- ISO 8601 timestamps
-- Proper number types (not strings for numeric values)
-- Pagination support for large datasets
-- Clear schema documentation
+**Example CSV Output**:
+```csv
+Date,Service,Account,Model,Tokens,Cost (USD),Source,Notes
+2026-02-01,ChatGPT,Personal API,gpt-4,15000,0.45,api,
+2026-02-02,ChatGPT,Personal API,gpt-4,22000,0.66,api,
+2026-02-03,Groq,Development,llama-3-70b,50000,0.00,manual,Free tier usage
+2026-02-04,Claude,Work Account,claude-opus-4,18000,0.90,api,
+```
 
-**Performance**[cite:7]:
-- Streaming response for datasets >10,000 records
-- Server-side filtering to reduce payload
-- Compression (gzip) for large files
-- Async export jobs for very large datasets (>100k records)
+### JSON Export Standards
+
+**Format Requirements**:
+- JSON Lines format for streaming large datasets
+- ISO 8601 timestamps with timezone
+- Nested structure for metadata
+- Proper data types (numbers, not strings)
+
+**Example JSON Output**:
+```json
+{
+  "metadata": {
+    "exported_at": "2026-02-25T22:15:00Z",
+    "filters": {
+      "start_date": "2026-02-01",
+      "end_date": "2026-02-25",
+      "service_ids": [1, 2],
+      "account_ids": [5]
+    },
+    "total_records": 245,
+    "total_cost": 127.45,
+    "total_tokens": 8450000
+  },
+  "records": [
+    {
+      "date": "2026-02-01",
+      "service": "ChatGPT",
+      "account": "Personal API",
+      "model": "gpt-4",
+      "tokens": 15000,
+      "cost": 0.45,
+      "source": "api",
+      "notes": null,
+      "created_at": "2026-02-01T08:30:00Z",
+      "updated_at": "2026-02-01T08:30:00Z"
+    }
+  ]
+}
+```
+
+### Streaming Best Practices
+
+**Why Stream?**
+- Avoid loading entire dataset into memory
+- Support exports of 100k+ records
+- Immediate download start (no waiting)
+- Lower server resource usage
+
+**Flask Streaming Pattern**:
+```python
+from flask import Response, stream_with_context
+import csv
+import io
+
+def generate_csv():
+    """Generator function for streaming CSV"""
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    
+    # Write header
+    writer.writerow(['Date', 'Service', 'Account', 'Tokens', 'Cost', 'Source'])
+    yield buf.getvalue()
+    buf.seek(0)
+    buf.truncate(0)
+    
+    # Stream data rows
+    for record in query_usage_records():
+        writer.writerow([
+            record.timestamp.strftime('%Y-%m-%d'),
+            record.service.name,
+            record.account.name,
+            record.tokens,
+            f"{record.cost:.2f}",
+            record.source
+        ])
+        yield buf.getvalue()
+        buf.seek(0)
+        buf.truncate(0)
+
+@app.route('/api/usage/export')
+@jwt_required()
+def export_usage():
+    return Response(
+        stream_with_context(generate_csv()),
+        mimetype='text/csv',
+        headers={
+            'Content-Disposition': 'attachment; filename=usage_export.csv',
+            'X-Accel-Buffering': 'no'  # Disable nginx buffering
+        }
+    )
+```
 
 ---
 
 ## 3. Technology Options
 
-### Backend Options
+### CSV Generation Libraries
 
-| Approach | Pros | Cons | Recommendation |
-|----------|------|------|----------------|
-| **Python `csv` module** | Native, simple, fast | Manual streaming setup | ✅ **Recommended for CSV** |
-| **Pandas `to_csv()`** | Rich features, easy | High memory for large data | ❌ Too heavy |
-| **Flask streaming response** | Memory efficient | More complex code | ✅ **Required for large datasets** |
-| **Celery background jobs** | Handles huge exports | Adds infrastructure complexity | ⏳ Phase 4 if needed |
+| Library | Pros | Cons | Recommendation |
+|---------|------|------|----------------|
+| **Python csv** | Built-in, RFC 4180 compliant, streaming | Manual encoding handling | ✅ Use this |
+| **pandas.to_csv()** | Rich features, handles encoding | Loads all data into memory | ❌ Not for streaming |
+| **csvwriter** | Third-party, advanced features | Extra dependency | ❌ Unnecessary |
 
-### Frontend Options
+**Verdict**: Use built-in `csv` module with streaming generator.
 
-| Approach | Pros | Cons | Recommendation |
-|----------|------|------|----------------|
-| **Direct `<a download>` link** | Simple, browser native | No progress indication | ✅ **Recommended for MVP** |
-| **Blob API + saveAs** | Progress tracking, client-side | More complex | ⏳ Phase 3.2 enhancement |
-| **Preview modal before download** | User confirmation | Extra click | ✅ **Nice to have** |
+### JSON Generation Libraries
+
+| Library | Pros | Cons | Recommendation |
+|---------|------|------|----------------|
+| **json** (built-in) | Standard, fast, streaming support | Manual serialization | ✅ Use this |
+| **ujson** | Faster than json | Extra dependency, minor gains | ❌ Premature optimization |
+| **orjson** | Fastest, native types | Extra dependency, Rust-based | ❌ Overkill |
+
+**Verdict**: Use built-in `json` module.
 
 ---
 
 ## 4. Architecture
 
-### High-Level Design
+### System Design
 
 ```
-┌─────────────────────────────────────────────────┐
-│              Frontend (React)                          │
-│  ┌──────────────────────────────────────────┐  │
-│  │  ExportButton Component                    │  │
-│  │  - Format selector (CSV/JSON)              │  │
-│  │  - Date range picker                       │  │
-│  │  - Service filter (optional)               │  │
-│  │  - Download trigger                        │  │
-│  └──────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────┘
-                     │ HTTP GET
-                     │ /api/usage/export?format=csv&start_date=...&end_date=...
-                     ↓
-┌─────────────────────────────────────────────────┐
-│              Backend (Flask)                           │
-│  ┌──────────────────────────────────────────┐  │
-│  │  routes/usage.py                           │  │
-│  │  @app.route('/api/usage/export')           │  │
-│  │  - Validate auth & params                  │  │
-│  │  - Query usage_records with filters        │  │
-│  │  - Stream response via generator           │  │
-│  └──────────────────────────────────────────┘  │
-│  ┌──────────────────────────────────────────┐  │
-│  │  utils/export_generator.py                 │  │
-│  │  - generate_csv() → yields rows          │  │
-│  │  - generate_json() → yields chunks       │  │
-│  │  - add_metadata()                          │  │
-│  └──────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│          Frontend (React)                          │
+│  ┌──────────────┐      ┌──────────────┐           │
+│  │ Export Button│      │ Format Toggle│           │
+│  │  📥 Download │      │  CSV | JSON  │           │
+│  └──────┬───────┘      └──────┬───────┘           │
+│         │                     │                    │
+│         └──────────┬──────────┘                    │
+│                    │ GET /api/usage/export         │
+└────────────────────┼───────────────────────────────┘
                      │
-                     ↓ Query with filters
-┌─────────────────────────────────────────────────┐
-│              PostgreSQL                                │
-│  usage_records table                                   │
-│  - Indexed on (timestamp, account_id, service_id)      │
-└─────────────────────────────────────────────────┘
+┌────────────────────▼───────────────────────────────┐
+│          Backend API (Flask)                      │
+│  ┌──────────────────────────────────────────┐    │
+│  │  export_usage() Route                    │    │
+│  │  - Authenticate user (JWT)               │    │
+│  │  - Validate filters                      │    │
+│  │  - Query database (streaming)            │    │
+│  │  - Generate CSV/JSON (streaming)         │    │
+│  └──────────────┬───────────────────────────┘    │
+└─────────────────┼─────────────────────────────────┘
+                  │
+┌─────────────────▼─────────────────────────────────┐
+│          Database (PostgreSQL)                    │
+│  SELECT * FROM usage_records                      │
+│  WHERE account_id IN (user_accounts)              │
+│    AND timestamp BETWEEN ? AND ?                  │
+│  ORDER BY timestamp ASC                           │
+└───────────────────────────────────────────────────┘
 ```
+
+### Data Flow
+
+1. **User Action**: Clicks "Export" button, selects format (CSV/JSON)
+2. **Frontend**: Constructs URL with filters, initiates download
+3. **Backend**: 
+   - Authenticates user via JWT
+   - Validates date range and filters
+   - Queries database with streaming cursor
+   - Generates CSV/JSON on-the-fly
+   - Streams response chunks to client
+4. **Browser**: Receives stream, saves as file
 
 ---
 
 ## 5. API Design
 
-### Endpoint: Export Usage Data
+### Endpoint Specification
 
-**Route**: `GET /api/usage/export`
+#### `GET /api/usage/export`
+
+**Description**: Export usage data in CSV or JSON format
 
 **Authentication**: Required (JWT)
 
@@ -127,473 +233,278 @@ All usage data is locked in the dashboard with no export functionality.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `format` | string | Yes | - | Export format: `csv` or `json` |
+| `format` | string | No | `csv` | Export format: `csv` or `json` |
 | `start_date` | date | No | 30 days ago | Start date (YYYY-MM-DD) |
 | `end_date` | date | No | Today | End date (YYYY-MM-DD) |
-| `service_id` | integer | No | All | Filter by specific service |
-| `account_id` | integer | No | All user accounts | Filter by specific account |
+| `service_id` | integer | No | All | Filter by service ID |
+| `account_id` | integer | No | All user accounts | Filter by account ID |
 | `source` | string | No | All | Filter by source: `api` or `manual` |
 
-**Request Example**:
-```http
-GET /api/usage/export?format=csv&start_date=2026-01-01&end_date=2026-01-31&service_id=1
-Authorization: Bearer <jwt_token>
+**Request Examples**:
+
+```bash
+# Export all data as CSV (default)
+GET /api/usage/export
+
+# Export specific date range as JSON
+GET /api/usage/export?format=json&start_date=2026-01-01&end_date=2026-01-31
+
+# Export only ChatGPT API data
+GET /api/usage/export?service_id=1&source=api
+
+# Export specific account
+GET /api/usage/export?account_id=5&format=csv
 ```
 
 **Response Headers**:
-```
-Content-Type: text/csv; charset=utf-8  (or application/json)
-Content-Disposition: attachment; filename="ai-cost-tracker-export-2026-02-25.csv"
-X-Total-Records: 1234
-X-Export-Date: 2026-02-25T22:00:00Z
+
+```http
+Content-Type: text/csv (or application/json)
+Content-Disposition: attachment; filename="usage_export_2026-02-25.csv"
+X-Accel-Buffering: no
+Cache-Control: no-cache
 ```
 
-**CSV Response Example**:
-```csv
-# AI Cost Tracker Export
-# Generated: 2026-02-25 22:00:00 UTC
-# Date Range: 2026-01-01 to 2026-01-31
-# Service: ChatGPT
-# Total Records: 31
-# Total Cost: $45.23
-
-Date,Service,Account,Request Type,Tokens,Cost (USD),Source,Notes
-2026-01-01,ChatGPT,My OpenAI Account,chat,150000,0.30,api,
-2026-01-02,ChatGPT,My OpenAI Account,chat,180000,0.36,api,
-2026-01-03,ChatGPT,My OpenAI Account,manual,0,5.00,manual,"Estimated usage for batch jobs"
-```
-
-**JSON Response Example**:
-```json
-{
-  "metadata": {
-    "export_date": "2026-02-25T22:00:00Z",
-    "start_date": "2026-01-01",
-    "end_date": "2026-01-31",
-    "filters": {
-      "service_id": 1,
-      "service_name": "ChatGPT"
-    },
-    "total_records": 31,
-    "total_cost": 45.23,
-    "total_tokens": 4650000
-  },
-  "data": [
-    {
-      "date": "2026-01-01",
-      "service_name": "ChatGPT",
-      "account_name": "My OpenAI Account",
-      "request_type": "chat",
-      "tokens": 150000,
-      "cost": 0.30,
-      "source": "api",
-      "notes": null,
-      "created_at": "2026-01-02T03:00:00Z",
-      "updated_at": "2026-01-02T03:00:00Z"
-    }
-  ]
-}
-```
+**Success Response** (200 OK):
+- Streaming CSV or JSON data
+- Filename includes export date
 
 **Error Responses**:
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| 400 | `INVALID_FORMAT` | Format must be 'csv' or 'json' |
-| 400 | `INVALID_DATE_RANGE` | start_date must be before end_date |
-| 400 | `DATE_RANGE_TOO_LARGE` | Max 1 year date range |
-| 401 | `UNAUTHORIZED` | Missing or invalid JWT token |
-| 403 | `FORBIDDEN` | User doesn't own specified account |
-| 404 | `NO_DATA` | No usage data in specified range |
-| 429 | `RATE_LIMIT_EXCEEDED` | Max 10 exports per hour |
+```json
+// 401 Unauthorized
+{
+  "error": "Missing or invalid JWT token"
+}
 
----
+// 400 Bad Request
+{
+  "error": "Invalid date format. Use YYYY-MM-DD"
+}
 
-## 6. Backend Implementation
+// 403 Forbidden
+{
+  "error": "Access denied to account ID 10"
+}
 
-### File: `backend/utils/export_generator.py`
-
-```python
-import csv
-import io
-import json
-from datetime import datetime
-from typing import Generator, Dict, Any
-from models import UsageRecord
-
-def generate_csv(records: list[UsageRecord], metadata: Dict[str, Any]) -> Generator[str, None, None]:
-    """
-    Generate CSV export as streaming response.
-    Yields rows one at a time for memory efficiency.
-    """
-    output = io.StringIO()
-    
-    # Write metadata header
-    yield "# AI Cost Tracker Export\n"
-    yield f"# Generated: {metadata['export_date']}\n"
-    yield f"# Date Range: {metadata['start_date']} to {metadata['end_date']}\n"
-    if metadata.get('service_name'):
-        yield f"# Service: {metadata['service_name']}\n"
-    yield f"# Total Records: {metadata['total_records']}\n"
-    yield f"# Total Cost: ${metadata['total_cost']:.2f}\n"
-    yield "\n"
-    
-    # Write CSV header
-    writer = csv.writer(output)
-    writer.writerow([
-        'Date', 'Service', 'Account', 'Request Type', 
-        'Tokens', 'Cost (USD)', 'Source', 'Notes'
-    ])
-    yield output.getvalue()
-    output.truncate(0)
-    output.seek(0)
-    
-    # Write data rows
-    for record in records:
-        writer.writerow([
-            record.timestamp.strftime('%Y-%m-%d'),
-            record.service.name,
-            record.account.name,
-            record.request_type,
-            record.tokens or 0,
-            f"{record.cost:.2f}",
-            record.source,
-            record.notes or ''
-        ])
-        yield output.getvalue()
-        output.truncate(0)
-        output.seek(0)
-
-def generate_json(records: list[UsageRecord], metadata: Dict[str, Any]) -> Generator[str, None, None]:
-    """
-    Generate JSON export as streaming response.
-    """
-    # Opening brace and metadata
-    yield '{'
-    yield f'"metadata": {json.dumps(metadata)},'
-    yield '"data": ['
-    
-    # Data records
-    for i, record in enumerate(records):
-        record_dict = {
-            'date': record.timestamp.strftime('%Y-%m-%d'),
-            'service_name': record.service.name,
-            'account_name': record.account.name,
-            'request_type': record.request_type,
-            'tokens': record.tokens,
-            'cost': float(record.cost),
-            'source': record.source,
-            'notes': record.notes,
-            'created_at': record.created_at.isoformat() if record.created_at else None,
-            'updated_at': record.updated_at.isoformat() if record.updated_at else None
-        }
-        
-        if i > 0:
-            yield ','
-        yield json.dumps(record_dict)
-    
-    # Closing
-    yield ']'
-    yield '}'
-```
-
-### File: `backend/routes/usage.py` (add endpoint)
-
-```python
-from flask import Response, stream_with_context
-from utils.export_generator import generate_csv, generate_json
-from datetime import datetime, timedelta
-
-@bp.route('/export', methods=['GET'])
-@jwt_required()
-def export_usage():
-    """
-    Export usage data in CSV or JSON format.
-    Streams response for memory efficiency.
-    """
-    user_id = get_jwt_identity()
-    
-    # Parse and validate parameters
-    export_format = request.args.get('format', '').lower()
-    if export_format not in ['csv', 'json']:
-        return jsonify({'error': 'INVALID_FORMAT', 'message': 'Format must be csv or json'}), 400
-    
-    # Date range (default to last 30 days)
-    try:
-        end_date = datetime.strptime(request.args.get('end_date', datetime.now().strftime('%Y-%m-%d')), '%Y-%m-%d')
-        start_date = datetime.strptime(request.args.get('start_date', (end_date - timedelta(days=30)).strftime('%Y-%m-%d')), '%Y-%m-%d')
-    except ValueError:
-        return jsonify({'error': 'INVALID_DATE_RANGE', 'message': 'Dates must be YYYY-MM-DD format'}), 400
-    
-    if start_date > end_date:
-        return jsonify({'error': 'INVALID_DATE_RANGE', 'message': 'start_date must be before end_date'}), 400
-    
-    if (end_date - start_date).days > 365:
-        return jsonify({'error': 'DATE_RANGE_TOO_LARGE', 'message': 'Maximum date range is 1 year'}), 400
-    
-    # Build query
-    query = UsageRecord.query.join(Account).filter(Account.user_id == user_id)
-    query = query.filter(UsageRecord.timestamp >= start_date, UsageRecord.timestamp <= end_date)
-    
-    # Optional filters
-    if service_id := request.args.get('service_id'):
-        query = query.filter(UsageRecord.service_id == int(service_id))
-    
-    if account_id := request.args.get('account_id'):
-        # Verify ownership
-        account = Account.query.filter_by(id=int(account_id), user_id=user_id).first()
-        if not account:
-            return jsonify({'error': 'FORBIDDEN'}), 403
-        query = query.filter(UsageRecord.account_id == int(account_id))
-    
-    if source := request.args.get('source'):
-        if source in ['api', 'manual']:
-            query = query.filter(UsageRecord.source == source)
-    
-    # Execute query
-    records = query.order_by(UsageRecord.timestamp).all()
-    
-    if not records:
-        return jsonify({'error': 'NO_DATA', 'message': 'No usage data in specified range'}), 404
-    
-    # Build metadata
-    metadata = {
-        'export_date': datetime.utcnow().isoformat() + 'Z',
-        'start_date': start_date.strftime('%Y-%m-%d'),
-        'end_date': end_date.strftime('%Y-%m-%d'),
-        'total_records': len(records),
-        'total_cost': float(sum(r.cost for r in records)),
-        'total_tokens': sum(r.tokens or 0 for r in records)
-    }
-    
-    # Generate filename
-    filename = f"ai-cost-tracker-export-{datetime.now().strftime('%Y-%m-%d')}.{export_format}"
-    
-    # Stream response
-    if export_format == 'csv':
-        return Response(
-            stream_with_context(generate_csv(records, metadata)),
-            mimetype='text/csv; charset=utf-8',
-            headers={
-                'Content-Disposition': f'attachment; filename="{filename}"',
-                'X-Total-Records': str(metadata['total_records']),
-                'X-Export-Date': metadata['export_date']
-            }
-        )
-    else:  # json
-        return Response(
-            stream_with_context(generate_json(records, metadata)),
-            mimetype='application/json',
-            headers={
-                'Content-Disposition': f'attachment; filename="{filename}"',
-                'X-Total-Records': str(metadata['total_records']),
-                'X-Export-Date': metadata['export_date']
-            }
-        )
+// 429 Too Many Requests
+{
+  "error": "Export rate limit exceeded. Try again in 5 minutes"
+}
 ```
 
 ---
 
-## 7. Frontend Implementation
+## 6. UI/UX Considerations
 
-### Component: `frontend/src/components/ExportButton.jsx`
+### Frontend Components
 
+#### Export Button Component
+
+**Location**: Dashboard page, Analytics page
+
+**Design**:
 ```jsx
-import React, { useState } from 'react';
-import api from '../services/api';
-
-const ExportButton = ({ serviceId = null, accountId = null }) => {
-  const [isExporting, setIsExporting] = useState(false);
-  const [format, setFormat] = useState('csv');
-  const [dateRange, setDateRange] = useState({
-    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0]
-  });
-  const [showModal, setShowModal] = useState(false);
-
-  const handleExport = async () => {
-    setIsExporting(true);
-    try {
-      const params = new URLSearchParams({
-        format,
-        start_date: dateRange.start,
-        end_date: dateRange.end
-      });
-      
-      if (serviceId) params.append('service_id', serviceId);
-      if (accountId) params.append('account_id', accountId);
-      
-      const response = await fetch(`/api/usage/export?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
-      
-      // Create download
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `ai-cost-export-${dateRange.start}_${dateRange.end}.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-      setShowModal(false);
-    } catch (error) {
-      alert('Export failed: ' + error.message);
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  return (
-    <>
-      <button 
-        className="btn-primary"
-        onClick={() => setShowModal(true)}
-      >
-        📊 Export Data
-      </button>
-      
-      {showModal && (
-        <div className="modal">
-          <div className="modal-content">
-            <h2>Export Usage Data</h2>
-            
-            <div className="form-group">
-              <label>Format</label>
-              <select value={format} onChange={(e) => setFormat(e.target.value)}>
-                <option value="csv">CSV (Excel compatible)</option>
-                <option value="json">JSON (Developer friendly)</option>
-              </select>
-            </div>
-            
-            <div className="form-group">
-              <label>Start Date</label>
-              <input 
-                type="date" 
-                value={dateRange.start}
-                onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
-              />
-            </div>
-            
-            <div className="form-group">
-              <label>End Date</label>
-              <input 
-                type="date" 
-                value={dateRange.end}
-                onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
-              />
-            </div>
-            
-            <div className="modal-actions">
-              <button 
-                className="btn-primary"
-                onClick={handleExport}
-                disabled={isExporting}
-              >
-                {isExporting ? 'Exporting...' : `Download ${format.toUpperCase()}`}
-              </button>
-              <button 
-                className="btn-secondary"
-                onClick={() => setShowModal(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
-
-export default ExportButton;
-```
-
-### Integration in Dashboard
-
-**In `DashboardPage.jsx`**:
-```jsx
-import ExportButton from '../components/ExportButton';
-
-// Add to dashboard header
-<div className="dashboard-header">
-  <h1>Dashboard</h1>
-  <ExportButton />
+<div className="export-section">
+  <button className="btn-primary" onClick={handleExport}>
+    <DownloadIcon /> Export Data
+  </button>
+  
+  <div className="export-options">
+    <label>
+      <input type="radio" name="format" value="csv" checked /> CSV
+    </label>
+    <label>
+      <input type="radio" name="format" value="json" /> JSON
+    </label>
+  </div>
+  
+  <div className="export-filters">
+    <DateRangePicker 
+      startDate={startDate} 
+      endDate={endDate}
+      onChange={setDateRange}
+    />
+    <ServiceFilter 
+      services={services}
+      selected={selectedService}
+      onChange={setSelectedService}
+    />
+  </div>
 </div>
 ```
 
+#### Export Progress Indicator
+
+**For Large Exports** (>10k records):
+- Show loading spinner during download
+- Display estimated file size
+- Cancel button (abort fetch)
+
+```jsx
+{isExporting && (
+  <div className="export-progress">
+    <Spinner />
+    <p>Exporting {recordCount} records...</p>
+    <button onClick={cancelExport}>Cancel</button>
+  </div>
+)}
+```
+
+#### Export Success Notification
+
+```jsx
+showNotification('success', `Exported ${recordCount} records to ${filename}`);
+```
+
+### API Client Implementation
+
+```javascript
+// frontend/src/services/api.js
+
+export const exportUsage = async (filters = {}) => {
+  const params = new URLSearchParams({
+    format: filters.format || 'csv',
+    start_date: filters.startDate || '',
+    end_date: filters.endDate || '',
+    service_id: filters.serviceId || '',
+    account_id: filters.accountId || '',
+    source: filters.source || ''
+  });
+  
+  // Remove empty params
+  for (const [key, value] of params.entries()) {
+    if (!value) params.delete(key);
+  }
+  
+  const response = await fetch(
+    `${API_BASE_URL}/usage/export?${params.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${getToken()}`
+      }
+    }
+  );
+  
+  if (!response.ok) {
+    throw new Error('Export failed');
+  }
+  
+  // Trigger browser download
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = getFilenameFromHeader(response) || 'usage_export.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+};
+
+function getFilenameFromHeader(response) {
+  const disposition = response.headers.get('Content-Disposition');
+  if (!disposition) return null;
+  const match = disposition.match(/filename="(.+)"/);
+  return match ? match[1] : null;
+}
+```
+
 ---
 
-## 8. Testing Strategy
+## 7. Testing Strategy
 
-### Unit Tests (`backend/tests/test_export.py`)
+### Unit Tests
 
 ```python
-def test_export_csv_format():
-    """Test CSV export generates valid format"""
-    records = [create_usage_record()]
-    metadata = {'export_date': '2026-02-25', 'total_records': 1}
-    
-    csv_data = ''.join(generate_csv(records, metadata))
-    
-    assert 'Date,Service,Account' in csv_data
-    assert records[0].service.name in csv_data
-    assert csv_data.count('\n') >= 2  # Header + data
+# backend/tests/test_export.py
 
-def test_export_requires_auth(client):
-    """Test export endpoint requires authentication"""
-    response = client.get('/api/usage/export?format=csv')
+import pytest
+from io import StringIO
+import csv
+import json
+
+def test_export_csv_format(client, auth_headers, sample_usage_data):
+    """Test CSV export format and structure"""
+    response = client.get(
+        '/api/usage/export?format=csv',
+        headers=auth_headers
+    )
+    
+    assert response.status_code == 200
+    assert response.mimetype == 'text/csv'
+    
+    # Parse CSV
+    reader = csv.DictReader(StringIO(response.data.decode('utf-8')))
+    rows = list(reader)
+    
+    assert len(rows) > 0
+    assert 'Date' in reader.fieldnames
+    assert 'Cost (USD)' in reader.fieldnames
+
+def test_export_json_format(client, auth_headers):
+    """Test JSON export format and structure"""
+    response = client.get(
+        '/api/usage/export?format=json',
+        headers=auth_headers
+    )
+    
+    assert response.status_code == 200
+    assert response.mimetype == 'application/json'
+    
+    data = json.loads(response.data)
+    assert 'metadata' in data
+    assert 'records' in data
+    assert 'total_records' in data['metadata']
+
+def test_export_date_filtering(client, auth_headers):
+    """Test date range filtering"""
+    response = client.get(
+        '/api/usage/export?start_date=2026-02-01&end_date=2026-02-10',
+        headers=auth_headers
+    )
+    
+    assert response.status_code == 200
+    # Verify all records within date range
+
+def test_export_authentication_required(client):
+    """Test authentication requirement"""
+    response = client.get('/api/usage/export')
     assert response.status_code == 401
 
-def test_export_invalid_format(client, auth_headers):
-    """Test invalid format returns 400"""
-    response = client.get('/api/usage/export?format=xml', headers=auth_headers)
-    assert response.status_code == 400
-    assert 'INVALID_FORMAT' in response.json['error']
-
-def test_export_date_validation(client, auth_headers):
-    """Test date range validation"""
-    response = client.get(
-        '/api/usage/export?format=csv&start_date=2026-12-31&end_date=2026-01-01',
-        headers=auth_headers
-    )
-    assert response.status_code == 400
-    assert 'INVALID_DATE_RANGE' in response.json['error']
-
-def test_export_ownership_check(client, auth_headers, other_user_account):
-    """Test users can only export their own data"""
-    response = client.get(
-        f'/api/usage/export?format=csv&account_id={other_user_account.id}',
-        headers=auth_headers
-    )
-    assert response.status_code == 403
+def test_export_rate_limiting(client, auth_headers):
+    """Test rate limiting (10 exports/hour)"""
+    for i in range(11):
+        response = client.get('/api/usage/export', headers=auth_headers)
+        if i < 10:
+            assert response.status_code == 200
+        else:
+            assert response.status_code == 429
 ```
 
 ### Integration Tests
 
 ```python
-def test_export_full_workflow(client, auth_headers, seed_usage_data):
-    """Test complete export workflow"""
-    response = client.get(
-        '/api/usage/export?format=csv&start_date=2026-01-01&end_date=2026-01-31',
-        headers=auth_headers
-    )
+def test_export_large_dataset(client, auth_headers):
+    """Test streaming with 50k records"""
+    # Seed 50k records
+    seed_large_dataset(50000)
     
+    response = client.get('/api/usage/export', headers=auth_headers)
     assert response.status_code == 200
-    assert response.headers['Content-Type'] == 'text/csv; charset=utf-8'
-    assert 'attachment' in response.headers['Content-Disposition']
     
-    csv_content = response.data.decode('utf-8')
-    assert '# AI Cost Tracker Export' in csv_content
-    assert 'Date,Service,Account' in csv_content
+    # Verify complete export
+    rows = list(csv.DictReader(StringIO(response.data.decode('utf-8'))))
+    assert len(rows) == 50000
+
+def test_export_ownership_isolation(client, auth_headers_user1, auth_headers_user2):
+    """Test users only export their own data"""
+    response1 = client.get('/api/usage/export', headers=auth_headers_user1)
+    response2 = client.get('/api/usage/export', headers=auth_headers_user2)
+    
+    # Verify different data sets
+    assert response1.data != response2.data
 ```
 
 ### Performance Tests
@@ -601,76 +512,111 @@ def test_export_full_workflow(client, auth_headers, seed_usage_data):
 ```python
 import time
 
-def test_export_large_dataset_performance():
-    """Test export handles 50k records efficiently"""
-    # Create 50k test records
-    records = [create_usage_record() for _ in range(50000)]
+def test_export_streaming_performance(client, auth_headers):
+    """Test streaming does not load entire dataset into memory"""
+    seed_large_dataset(100000)
     
     start_time = time.time()
-    csv_gen = generate_csv(records, {})
+    response = client.get('/api/usage/export', headers=auth_headers)
+    first_byte_time = time.time() - start_time
     
-    # Consume generator
-    for _ in csv_gen:
-        pass
-    
-    elapsed = time.time() - start_time
-    assert elapsed < 5.0  # Should complete in <5 seconds
+    # First byte should arrive quickly (streaming working)
+    assert first_byte_time < 1.0  # Less than 1 second
 ```
 
 ---
 
-## 9. Implementation Effort
+## 8. Implementation Effort
 
-### Week 1: Backend
-- Day 1-2: Create export_generator.py with CSV/JSON streaming
-- Day 3-4: Add /api/usage/export endpoint with filtering
-- Day 5: Unit tests and integration tests
+### Time Breakdown
 
-### Week 2: Frontend & Polish
-- Day 1-2: Build ExportButton component with modal
-- Day 3: Integrate into Dashboard and Analytics pages
-- Day 4: End-to-end testing
-- Day 5: Documentation and code review
+| Task | Effort | Notes |
+|------|--------|-------|
+| **Backend endpoint** | 2 days | CSV/JSON generation, streaming, filters |
+| **Database query optimization** | 1 day | Indexes, query tuning |
+| **Frontend UI** | 2 days | Export button, filters, progress indicator |
+| **Testing** | 2 days | Unit, integration, performance tests |
+| **Documentation** | 1 day | API docs, user guide |
+| **Code review & QA** | 2 days | Review, bug fixes |
 
 **Total**: 10 days (2 weeks)
 
----
+### Acceptance Criteria
 
-## 10. Dependencies
-
-### Required
-- None (builds on existing infrastructure)
-
-### Optional Enhancements (Phase 3.2+)
-- Progress indicators for large exports
-- Email delivery of exports for very large datasets
-- Scheduled exports (daily/weekly/monthly)
-- Export templates/presets
-
----
-
-## 11. Risks & Mitigation
-
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| **Memory issues with large datasets** | High | Medium | Use streaming response, test with 100k records |
-| **Excel encoding issues** | Medium | Low | Use UTF-8 with BOM, test with special characters |
-| **Rate limit abuse** | Medium | Low | Implement rate limiting (10 exports/hour) |
-| **Database performance** | Medium | Low | Add indexes on timestamp, optimize queries |
-| **Browser download failures** | Low | Low | Add retry logic, fallback to blob API |
+- ✅ Users can export data in CSV format
+- ✅ Users can export data in JSON format
+- ✅ Date range filtering works correctly
+- ✅ Service/account filtering works correctly
+- ✅ Streaming works for datasets >50k records
+- ✅ Export completes in <5 seconds for <10k records
+- ✅ Authentication enforced on all exports
+- ✅ Rate limiting prevents abuse (10/hour)
+- ✅ >80% test coverage maintained
+- ✅ Documentation complete
 
 ---
 
-## 12. Success Criteria
+## 9. Dependencies
 
-- ✅ Users can export data in CSV and JSON formats
-- ✅ Export handles >50,000 records without memory issues
-- ✅ CSV files open correctly in Excel without encoding issues
-- ✅ Export completes in <5 seconds for typical datasets (<10k records)
-- ✅ Date range and service filtering works correctly
-- ✅ Ownership validation prevents data leakage
-- ✅ >80% code coverage for export functionality
+### Python Packages
+- `csv` (built-in)
+- `json` (built-in)
+- `flask` (existing)
+- `flask-jwt-extended` (existing)
+- `sqlalchemy` (existing)
+
+**No new dependencies required** ✅
+
+### Database Changes
+
+**Add indexes for export performance**:
+
+```sql
+-- Optimize export queries
+CREATE INDEX IF NOT EXISTS idx_usage_export 
+ON usage_records(account_id, timestamp DESC);
+
+CREATE INDEX IF NOT EXISTS idx_usage_service_export 
+ON usage_records(service_id, timestamp DESC);
+```
 
 ---
 
-**Status**: 📋 Specification Complete | Ready for Implementation
+## 10. Risks & Mitigation
+
+### Risk 1: Large Export Memory Issues
+**Impact**: High  
+**Probability**: Medium  
+**Mitigation**: Use streaming generators, add export size limits (max 100k records per export)
+
+### Risk 2: Export Abuse (Data Scraping)
+**Impact**: Medium  
+**Probability**: Low  
+**Mitigation**: Rate limiting (10 exports/hour), authentication required, audit logging
+
+### Risk 3: CSV Encoding Issues (Excel)
+**Impact**: Medium  
+**Probability**: Medium  
+**Mitigation**: Use UTF-8 BOM, test with Excel on Windows/Mac, provide JSON alternative
+
+### Risk 4: Performance Degradation
+**Impact**: High  
+**Probability**: Low  
+**Mitigation**: Database indexes, query optimization, streaming, load testing
+
+---
+
+## 11. Future Enhancements (Post-Phase 3)
+
+- **Scheduled exports**: Email CSV reports weekly/monthly
+- **Export templates**: Save filter presets
+- **Additional formats**: Excel (XLSX), PDF reports
+- **Bulk exports**: All accounts, all time
+- **API pagination**: For programmatic access
+- **Export analytics**: Track which exports are most popular
+
+---
+
+**Status**: ✅ Ready for Implementation  
+**Assigned To**: TBD  
+**Sprint**: 3.1 (Weeks 1-2)
