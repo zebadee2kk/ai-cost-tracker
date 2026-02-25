@@ -1,4 +1,5 @@
 import pytest
+import uuid
 
 
 def _register_and_token(client, email="acct@example.com"):
@@ -9,7 +10,12 @@ def _register_and_token(client, email="acct@example.com"):
 def _seed_service(db):
     from models.service import Service
     from app import db as _db
-    svc = Service(name="TestService", api_provider="Test", has_api=True, pricing_model={})
+    svc = Service(
+        name=f"TestService-{uuid.uuid4().hex[:8]}",
+        api_provider="Test",
+        has_api=True,
+        pricing_model={},
+    )
     _db.session.add(svc)
     _db.session.commit()
     return svc.id
