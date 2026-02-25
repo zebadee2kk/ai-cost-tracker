@@ -1,0 +1,8 @@
+# Example owners. Replace with your real GitHub usernames or team slugs.
+*       @example-owner1 @example-owner2
+
+# Documentation changes
+/docs/  @example-docs
+
+# Security related files
+/SECURITY.md @example-security
