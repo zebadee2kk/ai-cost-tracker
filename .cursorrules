@@ -1,39 +1,151 @@
-# AI Agent Instructions & Repo Context
+# AI Agent Instructions for AI Cost Tracker
 
-This file serves as a guide for AI agents (Claude, Gemini, Antigravity, Copilot, etc.) interacting with this repository.
+This file guides AI agents (Claude Code, Cursor, Copilot, etc.) when building the AI Cost Tracker application.
 
-## 🧠 Repository Context
-- **Purpose**: [Briefly describe what this specific project does]
-- **Architecture**: Polyglot structure supporting Node.js, Python, or standard generic projects.
-- **Tone**: Professional, clean, and maintainable code.
+## 🎯 Project Overview
 
-## 🤖 Interaction Guidelines
+**Purpose**: Build a comprehensive dashboard to track and manage usage across multiple AI tools (ChatGPT, Claude, Groq, GitHub Copilot, Perplexity). Monitor token consumption, session limits, costs, and usage patterns in real-time.
 
-### 1. Code Generation Rules
-- **Formatting**: Always respect the `.editorconfig` (Indent style: Space, Size: 2, or as defined).
-- **Comments**: Write meaningful comments for complex logic. Avoid redundant comments like `// sets x to 1`.
-- **Types**:
-  - If **TypeScript**, be strict. Use interfaces/types over `any`.
-  - If **Python**, use Type Hints (`def foo(bar: str) -> bool:`).
-- **Error Handling**: Always implement proper error handling (try/catch in JS, try/except in Python).
+**Architecture**: Full-stack application with Flask/Python backend, React/Vue frontend, PostgreSQL database, and Docker containerization.
 
-### 2. File Organization
-- **New Components/Modules**: Place them in readable subdirectories. Avoid flat structures.
-- **Tests**: Locate tests near the implementation (e.g., `src/foo/foo.test.ts` or `tests/test_foo.py`).
+## 📚 PRIMARY DOCUMENTATION
 
-### 3. Workflow Awareness
-- **Before Editing**: Read `README.md` and related `docs/playbooks/` to understand the project architecture.
-- **After Editing**: Suggest updating documentation if the change affects architecture or usage.
+**CRITICAL**: All implementation details are in the `docs/` directory. Read these files FIRST before starting any code:
 
-## 🛠️ Tech Stack Detection
-- If `package.json` exists -> **Node.js/TypeScript** environment.
-- If `requirements.txt` / `pyproject.toml` exists -> **Python** environment.
-- If `Dockerfile` exists -> **Containerized** environment.
+### 1. Complete Project Plan
+- **File**: `docs/ai-tool-tracker-plan.md`
+- **Contains**: Requirements, database schema, architecture, features, implementation phases, security, testing
+- **Read this for**: Overall structure, database design, API specifications, feature requirements
 
-## 📝 Commit Message Convention
-When suggesting commit messages, follow Conventional Commits:
-- `feat: ...` for new features
-- `fix: ...` for bug fixes
-- `impr: ...` for improvements
-- `docs: ...` for documentation
-- `refactor: ...` for code reorganization
+### 2. API Integration Guide
+- **File**: `docs/api-integration-guide.md`
+- **Contains**: OpenAI, Claude, Groq, Perplexity, GitHub Copilot integration specs
+- **Read this for**: Service-specific API details, authentication, request/response formats, error handling
+
+### 3. Setup & Quick-Start
+- **File**: `docs/setup-quickstart.md`
+- **Contains**: Prerequisites, installation steps, environment setup, API endpoints, debugging
+- **Read this for**: How to set up the dev environment, run the app, troubleshoot issues
+
+## 🚀 Implementation Instructions
+
+### Phase 1: MVP (Start Here)
+1. Set up project structure as defined in `docs/ai-tool-tracker-plan.md` Section 9
+2. Create database schema from Section 2.1
+3. Build backend API with Flask (Section 3.1)
+4. Implement OpenAI API integration first (Section 4.2)
+5. Create basic React dashboard (Section 5.1)
+6. Add JWT authentication (Section 7.2)
+
+### Tech Stack (Use These)
+- **Backend**: Flask (Python 3.10+) with SQLAlchemy
+- **Database**: PostgreSQL (or SQLite for MVP)
+- **Frontend**: React with Chart.js
+- **Styling**: Tailwind CSS
+- **Authentication**: JWT tokens
+- **Security**: AES-256 for API key encryption
+
+## 🔐 Security Requirements (NON-NEGOTIABLE)
+
+1. **API Keys**: MUST be encrypted at rest using AES-256 (see `docs/api-integration-guide.md` "Storing API Keys Securely")
+2. **JWT Tokens**: MUST implement proper expiration and refresh
+3. **Environment Variables**: MUST use .env files, NEVER commit secrets
+4. **CORS**: MUST configure properly for frontend/backend communication
+5. **SQL Injection**: MUST use SQLAlchemy ORM, never raw SQL
+
+## 📋 Database Schema (Use Exactly)
+
+Implement tables from `docs/ai-tool-tracker-plan.md` Section 2.1:
+- `services` - AI service definitions
+- `accounts` - User accounts per service
+- `usage_records` - Token usage data
+- `alerts` - Alert configurations
+- `cost_projections` - Cost forecasting
+
+**Data Types**: Use DECIMAL(10,4) for costs, INTEGER for tokens, AES-256 encrypted VARCHAR for API keys
+
+## 🎨 Code Style
+
+### Python (Backend)
+- Use Type Hints: `def get_usage(account_id: int) -> Dict[str, Any]:`
+- Follow PEP 8
+- Use descriptive variable names
+- Implement proper error handling with try/except
+- Add docstrings to all functions
+
+### JavaScript/React (Frontend)
+- Use TypeScript if possible, otherwise PropTypes
+- Use functional components with hooks
+- Follow Airbnb style guide
+- Implement error boundaries
+- Add JSDoc comments for complex functions
+
+### File Organization
+```
+ai-cost-tracker/
+├── backend/
+│   ├── models/          # SQLAlchemy models
+│   ├── routes/          # API endpoints
+│   ├── services/        # Service integrations
+│   ├── utils/           # Helper functions
+│   └── jobs/            # Background tasks
+├── frontend/
+│   ├── src/
+│   │   ├── components/  # React components
+│   │   ├── pages/       # Page components
+│   │   ├── services/    # API client
+│   │   └── store/       # State management
+└── docs/                # Documentation (DO NOT MODIFY)
+```
+
+## ⚠️ Common Pitfalls to Avoid
+
+1. **Don't** implement features not in the spec - stick to the documentation
+2. **Don't** use hardcoded API keys - always use environment variables
+3. **Don't** skip error handling - every API call must have try/catch
+4. **Don't** forget to encrypt API keys before storing in database
+5. **Don't** create endpoints without authentication checks
+6. **Don't** use `any` type in TypeScript - be explicit
+
+## 🧪 Testing Requirements
+
+- Unit tests for all service integrations
+- Integration tests for API endpoints
+- Mock external API calls in tests
+- Test error handling paths
+- See `docs/ai-tool-tracker-plan.md` Section 10 for testing strategy
+
+## 📝 Commit Messages
+
+Follow Conventional Commits:
+- `feat: add OpenAI API integration`
+- `fix: resolve token calculation bug`
+- `docs: update API integration guide`
+- `refactor: simplify cost calculation logic`
+- `test: add unit tests for alert system`
+
+## 🔄 Development Workflow
+
+1. **Before coding**: Read the relevant documentation section
+2. **During coding**: Follow the exact specifications (database schema, API endpoints, etc.)
+3. **After coding**: Test thoroughly, update documentation if needed
+4. **Commit**: Write clear commit messages
+
+## 🆘 If You're Stuck
+
+1. Re-read the relevant section in `docs/`
+2. Check `docs/setup-quickstart.md` troubleshooting section
+3. Review API integration examples in `docs/api-integration-guide.md`
+4. Check if the feature is in the current implementation phase
+
+## ⚡ Quick Reference
+
+- **Database Schema**: `docs/ai-tool-tracker-plan.md` Section 2.1
+- **API Endpoints**: `docs/setup-quickstart.md` "API Endpoints Overview"
+- **Service Integration**: `docs/api-integration-guide.md` per service section
+- **Security Specs**: `docs/ai-tool-tracker-plan.md` Section 7
+- **File Structure**: `docs/ai-tool-tracker-plan.md` Section 9
+
+---
+
+**Remember**: The `docs/` directory contains the complete specification. When in doubt, refer to the documentation FIRST.
