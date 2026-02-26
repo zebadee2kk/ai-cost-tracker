@@ -4,6 +4,7 @@ import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import SettingsPage from "./pages/SettingsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
+import NotificationSettingsPage from "./pages/NotificationSettingsPage";
 import { getMe } from "./services/api";
 
 // --- Auth Context ---
@@ -56,6 +57,7 @@ export default function App() {
           <Route path="/" element={<RequireAuth><DashboardPage /></RequireAuth>} />
           <Route path="/analytics" element={<RequireAuth><AnalyticsPage /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
+          <Route path="/notifications" element={<RequireAuth><NotificationSettingsPage /></RequireAuth>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
