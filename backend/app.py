@@ -48,12 +48,19 @@ def create_app(config=None):
     from routes.services import services_bp
     from routes.usage import usage_bp
     from routes.alerts import alerts_bp
+    from routes.notifications import notifications_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(accounts_bp, url_prefix="/api/accounts")
     app.register_blueprint(services_bp, url_prefix="/api/services")
     app.register_blueprint(usage_bp, url_prefix="/api/usage")
     app.register_blueprint(alerts_bp, url_prefix="/api/alerts")
+    app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
+
+    # Start notification dispatcher (every 5 min) – skipped during testing
+    if not app.config.get("TESTING"):
+        from jobs.notification_processor import start_notification_processor
+        start_notification_processor(app)
 
     # Health check
     @app.route("/api/health")

@@ -65,4 +65,19 @@ export const updateAlert = (id, data) => api.put(`/alerts/${id}`, data);
 export const deleteAlert = (id) => api.delete(`/alerts/${id}`);
 export const acknowledgeAlert = (id) => api.post(`/alerts/${id}/acknowledge`);
 
+// --- Notifications ---
+export const getNotificationPreferences = (userId) =>
+  api.get(`/notifications/preferences/${userId}`);
+export const updateNotificationPreferences = (userId, prefs) =>
+  api.put(`/notifications/preferences/${userId}`, prefs);
+export const getNotificationQueue = (params) =>
+  api.get("/notifications/queue", { params });
+export const createQueueItem = (data) => api.post("/notifications/queue", data);
+export const getNotificationHistory = (params) =>
+  api.get("/notifications/history", { params });
+export const sendTestNotification = (channel, data) =>
+  api.post(`/notifications/test/${channel}`, data || {});
+export const getNotificationRateLimits = () =>
+  api.get("/notifications/rate-limits");
+
 export default api;

@@ -17,6 +17,17 @@ export default function SettingsPage() {
           <p className="muted" style={{ fontSize: "0.85rem" }}>Signed in as: <strong>{user?.email}</strong></p>
         </div>
         <div className="card" style={{ marginTop: "1rem" }}>
+          <h2 style={{ fontSize: "1rem", marginBottom: "0.75rem" }}>Notifications</h2>
+          <p className="muted" style={{ fontSize: "0.85rem", marginBottom: "0.75rem" }}>
+            Configure email and Slack alerts for budget thresholds and anomalies.
+          </p>
+          <Link to="/notifications">
+            <button className="btn-ghost" style={{ fontSize: "0.85rem" }}>
+              Notification Settings →
+            </button>
+          </Link>
+        </div>
+        <div className="card" style={{ marginTop: "1rem" }}>
           <h2 style={{ fontSize: "1rem", marginBottom: "0.75rem" }}>About</h2>
           <p style={{ fontSize: "0.85rem" }}>AI Cost Tracker v1.0 — Phase 1 MVP</p>
           <p className="muted" style={{ fontSize: "0.8rem", marginTop: "0.4rem" }}>
