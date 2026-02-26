@@ -1,143 +1,128 @@
-# Handover to Perplexity: AI Cost Tracker (Status + Next Steps)
+# Handover to Perplexity: Code Check & Code Review Remediation Plan
 
-## 1) Executive Summary
-The project has a functional Phase 1 MVP with a Flask backend, React frontend, JWT auth, encrypted API key storage, account CRUD, usage aggregation endpoints, alerts, analytics views, and Dockerized local dev. OpenAI is the only live API sync integration today; other services are seeded/configured but not yet integrated for real ingestion.
+## Context
+This handover captures a focused action plan to resolve the issues found during the latest code check and review.
 
-The best next move is to execute a focused **Phase 2 integration plan**: add Anthropic, Groq, and Perplexity service clients; wire them into scheduler sync; normalize usage payloads; and expand tests for multi-service reliability.
+## Latest Validation Snapshot
+- Frontend checks pass (`npm test`, `npm run build`).
+- Backend test suite has a systemic failure pattern: `ImportError: cannot import name 'create_app' from 'app' (unknown location)` from `tests/conftest.py` setup.
+- A single targeted backend test can pass in isolation, indicating a test-runtime/module-resolution inconsistency rather than a missing `create_app` implementation.
 
----
+## Root Issues Identified
 
-## 2) Current State: What Is Already Implemented
+### 1) Backend import architecture is fragile (highest priority)
+The codebase widely uses `from app import db` and similar direct imports across routes/models/tests. Under certain pytest collection/runtime states, the `app` module resolves inconsistently and triggers setup-time import errors.
 
-### Backend (complete MVP surface)
-- Flask app factory with CORS, JWT setup, migrations, health endpoint, and common error handlers.
-- SQLAlchemy models for users, services, accounts, usage records, alerts, and cost projections.
-- Auth endpoints: register/login/me/logout.
-- Account endpoints: list/create/get/update/delete + test connection.
-- Service endpoints: list/get/update pricing.
-- Usage endpoints: current month summary, paginated history, by-service aggregation, month-end forecast.
-- Alert endpoints: list/create/update/delete/acknowledge.
-- Encryption utility using Fernet for API keys at rest.
-- OpenAI API service integration + background scheduler job for periodic sync.
-- Cost calculator + alert-generation helper.
-- Seed script for baseline services.
+**Impact**
+- Large portions of backend tests fail before executing assertions.
+- CI reliability is reduced; regressions are harder to detect confidently.
 
-### Frontend (complete MVP UI)
-- Auth context + protected routes.
-- Login/register screen.
-- Dashboard with overview cards, chart view, account manager, and alert panel.
-- Analytics page with pie chart and forecast rendering.
-- Settings page with basic account/about section.
-- Axios API layer with JWT interceptors and 401 redirect behavior.
+### 2) Secret management is too permissive
+`SECRET_KEY` / `JWT_SECRET_KEY` default to `change-me-in-production`, and short/weak values are possible.
 
-### Test coverage (baseline, backend-focused)
-- Encryption utility tests.
-- Auth integration tests.
-- Account integration tests.
-- OpenAI service parser/credential-validation tests.
+**Impact**
+- Token-signing security can be weakened if production config is mis-set.
+
+### 3) Encryption key validation is warning-only
+Missing `ENCRYPTION_KEY` logs a warning but allows startup.
+
+**Impact**
+- Runtime failures can occur when encrypted credential workflows execute.
 
 ---
 
-## 3) Constraints & Assumptions To Preserve
-- API credentials must remain encrypted at rest and never returned in plaintext.
-- Costs in DB should stay DECIMAL-based (avoid float persistence).
-- JWT remains stateless for MVP simplicity.
-- Existing routes and response shapes should be backward-compatible with current frontend.
+## Action Plan (Execution-Ready)
+
+## Phase A — Stabilize app/module imports (P0)
+**Goal:** Eliminate ambiguous `app` imports and make backend tests deterministic.
+
+1. **Introduce explicit backend package structure**
+   - Add `backend/__init__.py` for package semantics.
+   - Create `backend/extensions.py` containing shared extension instances (`db`, `migrate`, `jwt`).
+   - Move/confirm app factory in a stable package path (`backend/app.py` or `backend/app_factory.py`).
+
+2. **Refactor imports across backend**
+   - Replace `from app import db` with package-scoped imports (e.g., `from backend.extensions import db`).
+   - Update routes/models/jobs/scripts/tests consistently.
+
+3. **Normalize test entrypoint**
+   - Update `tests/conftest.py` to import from the package path (not bare `app`).
+   - Ensure `pytest` runs from repo root and backend module path is explicit.
+
+4. **Add a guard test for import integrity**
+   - New lightweight test: import app factory + initialize test app context.
+   - Purpose: fail fast if import architecture regresses.
+
+**Definition of Done (Phase A)**
+- `cd backend && pytest -q` completes without import-setup errors.
+- No backend modules rely on `from app import ...`.
 
 ---
 
-## 4) Gaps / Risks Identified During Review
-1. **Only OpenAI has live usage sync**; Claude/Groq/Perplexity are not implemented yet.
-2. **Scheduler duplication risk**: sync inserts daily records each run without visible idempotency checks, so repeated runs can duplicate usage rows for the same account/day.
-3. **Minor cleanup debt in scheduler**: unused imports/variables (`ServiceError`, `tomorrow`) suggest unfinished refactor.
-4. **Testing gap**: no unit/integration tests yet for usage routes, alerts routes, scheduler behavior, or dedupe behavior.
-5. **Frontend/account UX**: connection test currently implemented only for ChatGPT/OpenAI accounts.
-6. **Roadmap docs inconsistency**: high-level roadmap file is generic and does not reflect actual MVP completion state.
+## Phase B — Hardening configuration/security (P1)
+**Goal:** Fail safely and explicitly for insecure/missing crypto config.
+
+1. **Secret strength enforcement**
+   - Add startup validation for `SECRET_KEY`/`JWT_SECRET_KEY` length and placeholder detection.
+   - Enforce in production; optionally warn in development/testing.
+
+2. **Fail-fast for missing ENCRYPTION_KEY in production**
+   - Convert warning-only behavior into startup exception in production mode.
+   - Keep tests/dev ergonomic via explicit allowances.
+
+3. **Document required env vars and failure behavior**
+   - Update README/setup docs to include strict requirements and examples.
+
+**Definition of Done (Phase B)**
+- Production startup fails with clear actionable messages for weak/missing keys.
+- Tests cover config validation branches.
 
 ---
 
-## 5) Recommended Next Steps (Prioritized)
+## Phase C — CI + verification tightening (P1)
+**Goal:** Prevent recurrence and improve confidence on every change.
 
-### Priority A — Multi-service sync foundation (Phase 2 core)
-1. Implement `AnthropicService`, `GroqService`, and `PerplexityService` in `backend/services/` using `BaseService`.
-2. Define a strict normalized `get_usage()` return contract for all service clients:
-   - `total_tokens`
-   - `total_cost`
-   - `daily[]` entries with date, tokens, cost, optional metadata
-3. Expand service dispatch mapping in scheduler and account test endpoint to include new services.
-4. Add robust error taxonomy for provider failures (auth error, rate limit, transient API failure).
+1. **CI command standardization**
+   - Backend: run from canonical working dir and import path.
+   - Frontend: maintain existing passing checks.
 
-### Priority B — Data correctness and idempotency
-1. Prevent duplicate daily usage records on repeated sync:
-   - Option 1: unique DB constraint (`account_id`, `service_id`, `timestamp`, `request_type`) and upsert behavior.
-   - Option 2: pre-insert existence check + update.
-2. Ensure scheduler writes are atomic per account (transaction block) and partial failures are logged cleanly.
-3. Validate currency consistency and rounding strategy for all providers.
+2. **Add fast smoke checks**
+   - Backend smoke command: app factory import + test app creation.
+   - Keep full backend tests as required gate.
 
-### Priority C — Test hardening
-1. Add unit tests for each new provider parser.
-2. Add integration tests for:
-   - `/api/usage` endpoints with seeded records.
-   - alert generation thresholds and acknowledge flow.
-   - scheduler idempotency (re-running sync should not duplicate costs).
-3. Add a lightweight CI matrix: lint + backend tests.
+3. **Regression checklist in PR template or contributor docs**
+   - Include module import pattern check and config key requirements.
 
-### Priority D — Product polish for MVP-to-beta
-1. Implement account-level “test connection” for new service types.
-2. Add manual-entry workflow for services lacking reliable billing APIs (especially Copilot/local LLMs).
-3. Add CSV/JSON export route + button in analytics.
-4. Improve setup docs and align `ROADMAP.md` with actual state.
+**Definition of Done (Phase C)**
+- CI consistently runs backend tests without intermittent import behavior.
+- Contributors have explicit guidance preventing reintroduction of fragile imports.
 
 ---
 
-## 6) Proposed Workplan (2 Sprints)
+## Suggested Delivery Sequence (2 short PRs)
 
-### Sprint 1 (Technical foundation)
-- Build 3 provider clients.
-- Wire into scheduler and test endpoint.
-- Introduce dedupe/idempotency in usage record persistence.
-- Add unit tests for provider response parsing.
+### PR 1 (Stability)
+- Packaging/import refactor + test harness normalization.
+- Target outcome: backend test suite green from command line and CI.
 
-**Definition of Done**
-- Multi-provider sync runs successfully without duplicate usage records.
-- New accounts can pass connection test for supported providers.
-- Backend tests pass in CI.
-
-### Sprint 2 (Reliability + UX)
-- Expand integration tests for usage and alerts.
-- Add export endpoint + frontend export action.
-- Improve observability/logging around sync run outcomes.
-- Documentation cleanup (README/ROADMAP/active context alignment).
-
-**Definition of Done**
-- Reliable monthly totals/forecasts across >1 provider.
-- Clear docs for local setup and current capability map.
+### PR 2 (Security Hardening)
+- Config validation for keys + docs/tests update.
+- Target outcome: production-safe startup behavior and explicit failure modes.
 
 ---
 
-## 7) Questions for Perplexity Research
-1. Current official billing/usage API capabilities and limitations for:
-   - Anthropic
-   - Groq
-   - Perplexity
-2. Best-practice approach when provider lacks historical billing endpoint:
-   - per-request logging strategy,
-   - reconciliation model,
-   - confidence scoring.
-3. Recommended schema strategy for cross-provider normalization while preserving provider-specific metadata.
-4. Idempotent ingestion patterns for daily usage sync in Flask + SQLAlchemy + Postgres.
-5. Minimal observability stack for scheduled jobs in this architecture.
+## Risks & Mitigations
+- **Risk:** Broad import refactor touches many files.
+  - **Mitigation:** Mechanical refactor + incremental test runs + one focused reviewer.
+- **Risk:** Strict startup checks may break existing local workflows.
+  - **Mitigation:** Production-only enforcement with clear dev/test fallback semantics.
 
 ---
 
-## 8) Suggested Prompt to Give Perplexity
-"Given this project state: Flask + SQLAlchemy backend with OpenAI-only usage sync and React dashboard, propose a concrete implementation design for Anthropic, Groq, and Perplexity integrations. Include exact endpoint capabilities as of now, normalized schema mapping, idempotent ingestion strategy, error/retry handling, and a testing plan with fixtures/mocks. Prioritize practical implementation in an existing codebase using APScheduler and PostgreSQL."
+## What Perplexity Should Return
+Please provide:
+1. A concrete package/import refactor blueprint tailored to this repo layout.
+2. A minimal-diff migration strategy (file-by-file order) to avoid breaking runtime.
+3. Recommended production-safe key validation rules for Flask/JWT/Fernet in this architecture.
+4. A CI command matrix ensuring deterministic backend import behavior.
 
----
-
-## 9) Immediate Starter Tasks for Next Engineer
-1. Create provider client stubs + tests.
-2. Add idempotent upsert path for daily usage records.
-3. Extend account connection test dispatch by provider.
-4. Add one end-to-end test that seeds usage and validates dashboard usage endpoint totals.
-5. Update roadmap docs to reflect completed MVP and current Phase 2 backlog.
