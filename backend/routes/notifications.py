@@ -20,6 +20,7 @@ from models.alert import Alert
 from models.notification_history import NotificationHistory
 from models.notification_preference import NotificationPreference
 from models.notification_queue import NotificationQueue
+from utils.webhook_validator import validate_webhook_url
 # Imported at module level so tests can patch routes.notifications.EmailSender /
 # SlackSender cleanly.  Both imports survive stubbed environments because the
 # sender modules themselves handle missing optional dependencies (sendgrid,
@@ -111,6 +112,16 @@ def update_preferences(user_id):
         if invalid:
             return jsonify({"error": f"Invalid alert_types: {sorted(invalid)}"}), 400
 
+        # Validate webhook URL for webhook-based channels
+        config = settings.get("config", {})
+        if channel in ("slack", "discord", "teams") and "webhook_url" in config:
+            webhook_url = config["webhook_url"]
+            if not validate_webhook_url(channel, webhook_url):
+                return jsonify({
+                    "error": f"Invalid webhook_url for channel '{channel}': "
+                             f"URL must use https and be from an official {channel} webhook domain."
+                }), 400
+
         pref = NotificationPreference.query.filter_by(
             user_id=user_id, channel=channel
         ).first()
@@ -153,7 +164,10 @@ def list_queue():
     current_id = _current_user_id()
     status_filter = request.args.get("status")
     channel_filter = request.args.get("channel")
-    limit = min(int(request.args.get("limit", 50)), 200)
+    raw_limit = request.args.get("limit", "50")
+    if not raw_limit.isdigit():
+        return jsonify({"error": "limit must be a positive integer"}), 400
+    limit = min(int(raw_limit), 200)
 
     query = NotificationQueue.query.filter_by(user_id=current_id)
 
@@ -203,6 +217,14 @@ def create_queue_item():
     if not alert or not alert.account or alert.account.user_id != current_id:
         return jsonify({"error": "Alert not found"}), 404
 
+    # Validate webhook recipient for webhook-based channels
+    if channel in ("slack", "discord", "teams"):
+        if not validate_webhook_url(channel, data["recipient"]):
+            return jsonify({
+                "error": f"Invalid recipient for channel '{channel}': "
+                         f"URL must use https and be from an official {channel} webhook domain."
+            }), 400
+
     priority = int(data.get("priority", 1))
     if priority not in (1, 2, 3):
         return jsonify({"error": "priority must be 1, 2, or 3"}), 400
@@ -234,7 +256,10 @@ def list_history():
     current_id = _current_user_id()
     channel_filter = request.args.get("channel")
     status_filter = request.args.get("status")
-    limit = min(int(request.args.get("limit", 50)), 200)
+    raw_limit = request.args.get("limit", "50")
+    if not raw_limit.isdigit():
+        return jsonify({"error": "limit must be a positive integer"}), 400
+    limit = min(int(raw_limit), 200)
 
     query = NotificationHistory.query.filter_by(user_id=current_id)
 
@@ -293,6 +318,11 @@ def send_test_notification(channel):
         )
         if not recipient:
             return jsonify({"error": f"No webhook URL configured for {channel}"}), 400
+        if not validate_webhook_url(channel, recipient):
+            return jsonify({
+                "error": f"Invalid webhook URL for channel '{channel}': "
+                         f"URL must use https and be from an official {channel} webhook domain."
+            }), 400
 
     test_alert_data = {
         "type": "system",

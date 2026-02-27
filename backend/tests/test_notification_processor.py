@@ -284,3 +284,100 @@ class TestProcessPendingIntegration:
         with app.app_context():
             updated = db.session.get(NotificationQueue, item_id)
             assert updated.status == "sent"
+
+    def test_batch_uses_bounded_queries(self, app, client):
+        """Eager loading must keep query count well below N+1 for a batch.
+
+        With N+1 behaviour a batch of 10 items would need 1 (queue fetch) +
+        10 (alert) + 10 (account) = 21 queries.  With joinedload the same
+        batch needs at most ~3 queries (queue+alert+account in one or two
+        joined selects, plus per-item commit queries).  We assert fewer than
+        5 queries for the *fetch* phase to remain independent of the number
+        of dispatch commits.
+        """
+        from app import db
+        from models.service import Service
+        from models.account import Account
+        from models.alert import Alert
+        from models.notification_queue import NotificationQueue
+        from sqlalchemy import event
+        from sqlalchemy.engine import Engine
+
+        # Count SELECT statements issued during _process_notifications
+        query_log: list = []
+
+        @event.listens_for(Engine, "before_cursor_execute")
+        def _count_query(conn, cursor, statement, parameters, context, executemany):
+            if statement.strip().upper().startswith("SELECT"):
+                query_log.append(statement)
+
+        try:
+            with app.app_context():
+                reg = client.post(
+                    "/api/auth/register",
+                    json={"email": "batch_qcount@example.com", "password": "password123"},
+                )
+                if reg.status_code == 409:
+                    reg = client.post(
+                        "/api/auth/login",
+                        json={"email": "batch_qcount@example.com", "password": "password123"},
+                    )
+                user_id = reg.get_json().get("user", {}).get("id") or \
+                           reg.get_json().get("id")
+
+                svc = Service.query.filter_by(name="OpenAI").first()
+                if not svc:
+                    svc = Service(name="OpenAI", api_provider="openai", has_api=True, pricing_model={})
+                    db.session.add(svc)
+                    db.session.flush()
+
+                account = Account(user_id=user_id, service_id=svc.id, account_name="Batch QC Account")
+                db.session.add(account)
+                db.session.flush()
+
+                alert = Alert(
+                    account_id=account.id,
+                    alert_type="approaching_limit",
+                    threshold_percentage=80,
+                    is_active=True,
+                    is_acknowledged=False,
+                    notification_method="dashboard",
+                    message="batch query count test",
+                )
+                db.session.add(alert)
+                db.session.flush()
+
+                # Enqueue 10 pending items sharing the same alert/account
+                item_ids = []
+                for i in range(10):
+                    qi = NotificationQueue(
+                        alert_id=alert.id,
+                        user_id=user_id,
+                        channel="email",
+                        recipient=f"batch{i}@qc.com",
+                        priority=1,
+                        status="pending",
+                    )
+                    db.session.add(qi)
+                db.session.commit()
+
+            # Clear counter then run the processor (email mocked so no real I/O)
+            query_log.clear()
+
+            with patch("services.notifications.email_sender.EmailSender") as MockEmail:
+                instance = MagicMock()
+                instance.send_alert.return_value = True
+                MockEmail.return_value = instance
+                process_pending_notifications(app)
+
+        finally:
+            event.remove(Engine, "before_cursor_execute", _count_query)
+
+        # With eager loading the main fetch (queue + alert + account) is done
+        # in at most 3 SELECT statements regardless of batch size.
+        fetch_queries = [q for q in query_log if "notification_queue" in q.lower()
+                         or "alerts" in q.lower() or "accounts" in q.lower()]
+        assert len(fetch_queries) <= 3, (
+            f"Expected ≤3 SELECT queries for batch fetch with eager loading, "
+            f"got {len(fetch_queries)}: {fetch_queries}"
+        )

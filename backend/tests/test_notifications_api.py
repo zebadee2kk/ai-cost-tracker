@@ -410,7 +410,7 @@ class TestSendTestNotification:
             json={
                 "slack": {
                     "enabled": True,
-                    "config": {"webhook_url": "https://hooks.slack.com/test"},
+                    "config": {"webhook_url": "https://hooks.slack.com/services/T00000/B00000/tok"},
                     "alert_types": [],
                 }
             },
@@ -485,3 +485,291 @@ class TestRateLimits:
     def test_requires_auth(self, client):
         res = client.get("/api/notifications/rate-limits")
         assert res.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Webhook URL validation (SSRF remediation – HIGH-1)
+# ---------------------------------------------------------------------------
+
+class TestWebhookValidation:
+    """Ensure all three endpoints that accept webhook URLs reject malicious ones."""
+
+    # --- PUT /api/notifications/preferences (place 1) ---
+
+    def test_preferences_valid_slack_webhook_accepted(self, client, auth_headers, user_id):
+        payload = {
+            "slack": {
+                "enabled": True,
+                "config": {"webhook_url": "https://hooks.slack.com/services/T/B/tok"},
+                "alert_types": [],
+            }
+        }
+        res = client.put(
+            f"/api/notifications/preferences/{user_id}", json=payload, headers=auth_headers
+        )
+        assert res.status_code == 200
+
+    def test_preferences_malicious_slack_webhook_rejected(self, client, auth_headers, user_id):
+        payload = {
+            "slack": {
+                "enabled": True,
+                "config": {"webhook_url": "https://evil.com/services/T/B/tok"},
+                "alert_types": [],
+            }
+        }
+        res = client.put(
+            f"/api/notifications/preferences/{user_id}", json=payload, headers=auth_headers
+        )
+        assert res.status_code == 400
+        assert "webhook_url" in res.get_json()["error"].lower() or "invalid" in res.get_json()["error"].lower()
+
+    def test_preferences_http_slack_webhook_rejected(self, client, auth_headers, user_id):
+        payload = {
+            "slack": {
+                "enabled": True,
+                "config": {"webhook_url": "http://hooks.slack.com/services/T/B/tok"},
+                "alert_types": [],
+            }
+        }
+        res = client.put(
+            f"/api/notifications/preferences/{user_id}", json=payload, headers=auth_headers
+        )
+        assert res.status_code == 400
+
+    def test_preferences_localhost_slack_webhook_rejected(self, client, auth_headers, user_id):
+        payload = {
+            "slack": {
+                "enabled": True,
+                "config": {"webhook_url": "https://localhost/services/T/B/tok"},
+                "alert_types": [],
+            }
+        }
+        res = client.put(
+            f"/api/notifications/preferences/{user_id}", json=payload, headers=auth_headers
+        )
+        assert res.status_code == 400
+
+    def test_preferences_valid_discord_webhook_accepted(self, client, auth_headers, user_id):
+        payload = {
+            "discord": {
+                "enabled": True,
+                "config": {"webhook_url": "https://discord.com/api/webhooks/123/abc"},
+                "alert_types": [],
+            }
+        }
+        res = client.put(
+            f"/api/notifications/preferences/{user_id}", json=payload, headers=auth_headers
+        )
+        assert res.status_code == 200
+
+    def test_preferences_malicious_discord_webhook_rejected(self, client, auth_headers, user_id):
+        payload = {
+            "discord": {
+                "enabled": True,
+                "config": {"webhook_url": "https://evil.com/api/webhooks/123/abc"},
+                "alert_types": [],
+            }
+        }
+        res = client.put(
+            f"/api/notifications/preferences/{user_id}", json=payload, headers=auth_headers
+        )
+        assert res.status_code == 400
+
+    def test_preferences_valid_teams_webhook_accepted(self, client, auth_headers, user_id):
+        payload = {
+            "teams": {
+                "enabled": True,
+                "config": {"webhook_url": "https://myorg.webhook.office.com/webhookb2/abc"},
+                "alert_types": [],
+            }
+        }
+        res = client.put(
+            f"/api/notifications/preferences/{user_id}", json=payload, headers=auth_headers
+        )
+        assert res.status_code == 200
+
+    def test_preferences_internal_ip_teams_webhook_rejected(self, client, auth_headers, user_id):
+        payload = {
+            "teams": {
+                "enabled": True,
+                "config": {"webhook_url": "https://192.168.1.1/webhookb2/abc"},
+                "alert_types": [],
+            }
+        }
+        res = client.put(
+            f"/api/notifications/preferences/{user_id}", json=payload, headers=auth_headers
+        )
+        assert res.status_code == 400
+
+    # --- POST /api/notifications/queue (place 2) ---
+
+    def test_queue_valid_slack_recipient_accepted(self, client, auth_headers, alert_fixture):
+        res = client.post(
+            "/api/notifications/queue",
+            json={
+                "alert_id": alert_fixture["alert_id"],
+                "channel": "slack",
+                "recipient": "https://hooks.slack.com/services/T/B/tok",
+                "priority": 1,
+            },
+            headers=auth_headers,
+        )
+        assert res.status_code == 201
+
+    def test_queue_malicious_slack_recipient_rejected(self, client, auth_headers, alert_fixture):
+        res = client.post(
+            "/api/notifications/queue",
+            json={
+                "alert_id": alert_fixture["alert_id"],
+                "channel": "slack",
+                "recipient": "https://attacker.internal/steal-secrets",
+                "priority": 1,
+            },
+            headers=auth_headers,
+        )
+        assert res.status_code == 400
+
+    def test_queue_localhost_recipient_rejected(self, client, auth_headers, alert_fixture):
+        res = client.post(
+            "/api/notifications/queue",
+            json={
+                "alert_id": alert_fixture["alert_id"],
+                "channel": "slack",
+                "recipient": "https://localhost:8080/internal-endpoint",
+                "priority": 1,
+            },
+            headers=auth_headers,
+        )
+        assert res.status_code == 400
+
+    def test_queue_metadata_ip_recipient_rejected(self, client, auth_headers, alert_fixture):
+        """AWS metadata endpoint must be rejected."""
+        res = client.post(
+            "/api/notifications/queue",
+            json={
+                "alert_id": alert_fixture["alert_id"],
+                "channel": "slack",
+                "recipient": "https://169.254.169.254/latest/meta-data/",
+                "priority": 1,
+            },
+            headers=auth_headers,
+        )
+        assert res.status_code == 400
+
+    def test_queue_valid_discord_recipient_accepted(self, client, auth_headers, alert_fixture):
+        res = client.post(
+            "/api/notifications/queue",
+            json={
+                "alert_id": alert_fixture["alert_id"],
+                "channel": "discord",
+                "recipient": "https://discord.com/api/webhooks/123/tok",
+                "priority": 1,
+            },
+            headers=auth_headers,
+        )
+        assert res.status_code == 201
+
+    def test_queue_malicious_discord_recipient_rejected(self, client, auth_headers, alert_fixture):
+        res = client.post(
+            "/api/notifications/queue",
+            json={
+                "alert_id": alert_fixture["alert_id"],
+                "channel": "discord",
+                "recipient": "http://discord.com/api/webhooks/123/tok",
+                "priority": 1,
+            },
+            headers=auth_headers,
+        )
+        assert res.status_code == 400
+
+    # --- POST /api/notifications/test/<channel> (place 3) ---
+
+    def test_test_endpoint_malicious_slack_recipient_rejected(self, client, user_token):
+        token, uid = user_token
+        headers = {"Authorization": f"Bearer {token}"}
+        res = client.post(
+            "/api/notifications/test/slack",
+            json={"recipient": "https://evil.internal/exfiltrate"},
+            headers=headers,
+        )
+        assert res.status_code == 400
+
+    def test_test_endpoint_localhost_slack_recipient_rejected(self, client, auth_headers):
+        res = client.post(
+            "/api/notifications/test/slack",
+            json={"recipient": "http://localhost:9200/_cat/indices"},
+            headers=auth_headers,
+        )
+        assert res.status_code == 400
+
+    def test_test_endpoint_valid_slack_proceeds_to_sender(self, client, user_token):
+        token, uid = user_token
+        headers = {"Authorization": f"Bearer {token}"}
+        with patch("routes.notifications.SlackSender") as MockSender:
+            instance = MockSender.return_value = unittest_mock_instance()
+            instance.send_alert.return_value = True
+            res = client.post(
+                "/api/notifications/test/slack",
+                json={"recipient": "https://hooks.slack.com/services/T/B/tok"},
+                headers=headers,
+            )
+        assert res.status_code == 200
+
+
+def unittest_mock_instance():
+    """Return a pre-configured MagicMock for use in webhook tests."""
+    from unittest.mock import MagicMock
+    m = MagicMock()
+    m.send_alert.return_value = True
+    return m
+
+
+# ---------------------------------------------------------------------------
+# Query param hardening – limit validation (Medium M-2 remediation)
+# ---------------------------------------------------------------------------
+
+class TestLimitParamValidation:
+    """Non-numeric, negative, and oversized limit params must return 400."""
+
+    # --- GET /api/notifications/queue ---
+
+    def test_queue_non_numeric_limit_rejected(self, client, auth_headers):
+        res = client.get("/api/notifications/queue?limit=abc", headers=auth_headers)
+        assert res.status_code == 400
+        assert "limit" in res.get_json()["error"].lower()
+
+    def test_queue_negative_limit_rejected(self, client, auth_headers):
+        # isdigit() returns False for negative values like "-1"
+        res = client.get("/api/notifications/queue?limit=-1", headers=auth_headers)
+        assert res.status_code == 400
+
+    def test_queue_float_limit_rejected(self, client, auth_headers):
+        res = client.get("/api/notifications/queue?limit=1.5", headers=auth_headers)
+        assert res.status_code == 400
+
+    def test_queue_oversized_limit_capped_to_200(self, client, auth_headers):
+        res = client.get("/api/notifications/queue?limit=999999", headers=auth_headers)
+        assert res.status_code == 200  # capped, not rejected
+
+    def test_queue_valid_limit_accepted(self, client, auth_headers):
+        res = client.get("/api/notifications/queue?limit=10", headers=auth_headers)
+        assert res.status_code == 200
+
+    # --- GET /api/notifications/history ---
+
+    def test_history_non_numeric_limit_rejected(self, client, auth_headers):
+        res = client.get("/api/notifications/history?limit=abc", headers=auth_headers)
+        assert res.status_code == 400
+        assert "limit" in res.get_json()["error"].lower()
+
+    def test_history_negative_limit_rejected(self, client, auth_headers):
+        res = client.get("/api/notifications/history?limit=-1", headers=auth_headers)
+        assert res.status_code == 400
+
+    def test_history_oversized_limit_capped_to_200(self, client, auth_headers):
+        res = client.get("/api/notifications/history?limit=999999", headers=auth_headers)
+        assert res.status_code == 200  # capped, not rejected
+
+    def test_history_valid_limit_accepted(self, client, auth_headers):
+        res = client.get("/api/notifications/history?limit=25", headers=auth_headers)
+        assert res.status_code == 200
