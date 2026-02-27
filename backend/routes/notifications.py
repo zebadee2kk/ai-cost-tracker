@@ -164,7 +164,10 @@ def list_queue():
     current_id = _current_user_id()
     status_filter = request.args.get("status")
     channel_filter = request.args.get("channel")
-    limit = min(int(request.args.get("limit", 50)), 200)
+    raw_limit = request.args.get("limit", "50")
+    if not raw_limit.isdigit():
+        return jsonify({"error": "limit must be a positive integer"}), 400
+    limit = min(int(raw_limit), 200)
 
     query = NotificationQueue.query.filter_by(user_id=current_id)
 
@@ -253,7 +256,10 @@ def list_history():
     current_id = _current_user_id()
     channel_filter = request.args.get("channel")
     status_filter = request.args.get("status")
-    limit = min(int(request.args.get("limit", 50)), 200)
+    raw_limit = request.args.get("limit", "50")
+    if not raw_limit.isdigit():
+        return jsonify({"error": "limit must be a positive integer"}), 400
+    limit = min(int(raw_limit), 200)
 
     query = NotificationHistory.query.filter_by(user_id=current_id)
 

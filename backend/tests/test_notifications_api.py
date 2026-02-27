@@ -722,3 +722,54 @@ def unittest_mock_instance():
     m = MagicMock()
     m.send_alert.return_value = True
     return m
+
+
+# ---------------------------------------------------------------------------
+# Query param hardening – limit validation (Medium M-2 remediation)
+# ---------------------------------------------------------------------------
+
+class TestLimitParamValidation:
+    """Non-numeric, negative, and oversized limit params must return 400."""
+
+    # --- GET /api/notifications/queue ---
+
+    def test_queue_non_numeric_limit_rejected(self, client, auth_headers):
+        res = client.get("/api/notifications/queue?limit=abc", headers=auth_headers)
+        assert res.status_code == 400
+        assert "limit" in res.get_json()["error"].lower()
+
+    def test_queue_negative_limit_rejected(self, client, auth_headers):
+        # isdigit() returns False for negative values like "-1"
+        res = client.get("/api/notifications/queue?limit=-1", headers=auth_headers)
+        assert res.status_code == 400
+
+    def test_queue_float_limit_rejected(self, client, auth_headers):
+        res = client.get("/api/notifications/queue?limit=1.5", headers=auth_headers)
+        assert res.status_code == 400
+
+    def test_queue_oversized_limit_capped_to_200(self, client, auth_headers):
+        res = client.get("/api/notifications/queue?limit=999999", headers=auth_headers)
+        assert res.status_code == 200  # capped, not rejected
+
+    def test_queue_valid_limit_accepted(self, client, auth_headers):
+        res = client.get("/api/notifications/queue?limit=10", headers=auth_headers)
+        assert res.status_code == 200
+
+    # --- GET /api/notifications/history ---
+
+    def test_history_non_numeric_limit_rejected(self, client, auth_headers):
+        res = client.get("/api/notifications/history?limit=abc", headers=auth_headers)
+        assert res.status_code == 400
+        assert "limit" in res.get_json()["error"].lower()
+
+    def test_history_negative_limit_rejected(self, client, auth_headers):
+        res = client.get("/api/notifications/history?limit=-1", headers=auth_headers)
+        assert res.status_code == 400
+
+    def test_history_oversized_limit_capped_to_200(self, client, auth_headers):
+        res = client.get("/api/notifications/history?limit=999999", headers=auth_headers)
+        assert res.status_code == 200  # capped, not rejected
+
+    def test_history_valid_limit_accepted(self, client, auth_headers):
+        res = client.get("/api/notifications/history?limit=25", headers=auth_headers)
+        assert res.status_code == 200
