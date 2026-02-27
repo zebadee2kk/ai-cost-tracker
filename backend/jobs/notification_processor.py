@@ -78,14 +78,20 @@ def _process_notifications(app) -> None:
     """Fetch and dispatch pending notifications (runs inside app context)."""
     with app.app_context():
         from app import db
+        from models.alert import Alert
         from models.notification_queue import NotificationQueue
         from services.notifications.rate_limiter import RateLimiter
+        from sqlalchemy.orm import joinedload
 
         rate_limiter = RateLimiter()
 
-        # Fetch pending items: highest priority first, oldest first within priority
+        # Fetch pending items with eager loading to avoid N+1 queries when
+        # _build_alert_data() dereferences item.alert and alert.account.
         pending = (
             NotificationQueue.query
+            .options(
+                joinedload(NotificationQueue.alert).joinedload(Alert.account)
+            )
             .filter_by(status="pending")
             .order_by(
                 NotificationQueue.priority.desc(),
@@ -101,8 +107,18 @@ def _process_notifications(app) -> None:
 
         logger.info("Processing %d pending notification(s).", len(pending))
 
-        for item in pending:
-            _dispatch_item(app, db, item, rate_limiter)
+        # Disable expire_on_commit for the batch loop so that SQLAlchemy does
+        # not re-issue per-item SELECT queries after each commit (which would
+        # undo the benefit of eager loading above).  The flag is accessed on
+        # the underlying Session (not the scoped proxy) and restored on exit.
+        session = db.session()
+        original_expire = session.expire_on_commit
+        session.expire_on_commit = False
+        try:
+            for item in pending:
+                _dispatch_item(app, db, item, rate_limiter)
+        finally:
+            session.expire_on_commit = original_expire
 
 
 def _dispatch_item(app, db, item, rate_limiter) -> None:
