@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Node](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
-[![Phase](https://img.shields.io/badge/Phase-3%20Active-brightgreen)](docs/phase3-roadmap.md)
+[![Phase](https://img.shields.io/badge/Phase-3%20Sprint%202%20Complete-brightgreen)](docs/phase3-status.md)
 
 ---
 
@@ -53,21 +53,21 @@
 - ✅ **Visual Source Indicators**: Color-coded badges and chart styling for API vs Manual data
 - ✅ **Source Filtering**: Toggle between All/API Only/Manual Only views
 
-#### ✅ Sprint 2 Week 1 — Notification Foundation (Complete)
+#### ✅ Sprint 2 — Advanced Alerts & Notifications (Complete - Feb 27, 2026)
 - ✅ **Database Models**: notification_preferences, notification_queue, notification_history
 - ✅ **Email Notifications**: SendGrid integration with HTML templates (budget/anomaly/system alerts)
 - ✅ **Slack Notifications**: Webhook support with Block Kit formatting
+- ✅ **Discord/Teams Support**: Webhook validation for multiple channels
 - ✅ **Rate Limiting**: Per-user, per-channel hourly and daily limits (10/hour email, 20/hour Slack)
 - ✅ **CI/CD Pipeline**: GitHub Actions with automated testing, security scanning, Docker builds
+- ✅ **Notification API**: REST endpoints for preferences, queue, history, testing, rate-limits
+- ✅ **Background Processor**: APScheduler-based dispatcher (every 5 min)
+- ✅ **Alert Integration**: Budget thresholds (70%, 90%, 100%) trigger notifications
+- ✅ **Frontend UI**: NotificationSettingsPage with channel configuration
+- ✅ **Security Hardening**: SSRF protection, N+1 query elimination, input validation
 
-#### 🔨 Sprint 2 Week 2 — Notification API & Integration (In Progress)
-- 📋 Notification REST endpoints (CRUD for preferences, queue management)
-- 📋 Scheduled notification processor (cron job)
-- 📋 Alert trigger integration (budget thresholds, anomaly detection)
-- 📋 User notification settings UI
-
-#### 📋 Sprint 3 — Advanced Analytics (Planned)
-- 📋 Cost anomaly detection with ML models
+#### 📋 Sprint 3 — Advanced Analytics (Planned - March 2026)
+- 📋 Cost anomaly detection with statistical models
 - 📋 Usage trend analysis and forecasting
 - 📋 Multi-user support with team dashboards
 - 📋 Custom report scheduling
@@ -224,6 +224,11 @@ Configure alerts to stay informed about your AI spending:
 - Email: 10/hour, 50/day per user
 - Slack: 20/hour, 100/day per user
 
+**Security Features:**
+- SSRF protection with webhook URL validation
+- Strict allowlists for Slack, Discord, Teams webhooks
+- HTTPS-only webhook URLs
+
 ---
 
 ## 🎯 Supported AI Services
@@ -254,10 +259,10 @@ Configure alerts to stay informed about your AI spending:
 │  /api/auth   /api/accounts   /api/usage            │
 │  /api/usage/manual   /api/usage/export             │
 │  /api/services   /api/alerts                       │
-│  /api/notifications (upcoming)                     │
+│  /api/notifications (complete)                     │
 └──────┬──────────────────────────────┬───────────────┘
        │                              │
-  PostgreSQL                   APScheduler (hourly)
+  PostgreSQL                   APScheduler (every 5 min)
   + notification tables         → sync_usage_job
   + rate limiting               → notification_processor
   SQLAlchemy ORM                → OpenAIService
@@ -283,23 +288,26 @@ Configure alerts to stay informed about your AI spending:
 ai-cost-tracker/
 ├── backend/
 │   ├── models/           # User, Account, Service, UsageRecord, Notification*
-│   ├── routes/           # auth, accounts, usage, services, alerts
+│   ├── routes/           # auth, accounts, usage, services, alerts, notifications
 │   ├── services/
 │   │   ├── api/          # openai_service, anthropic_service
 │   │   └── notifications/ # email_sender, slack_sender, rate_limiter
 │   ├── jobs/             # sync_usage, notification_processor
 │   ├── migrations/       # Alembic (Phase 1-3 schemas)
-│   ├── tests/            # 46+ passing tests
-│   └── utils/            # encryption, cost_calculator, alert_generator
+│   ├── tests/            # 121+ passing tests
+│   └── utils/            # encryption, cost_calculator, alert_generator, webhook_validator
 ├── frontend/src/
 │   ├── components/       # ExportButton, SourceBadge, SourceFilter, Modals
-│   ├── pages/            # Dashboard, Analytics, Login, Settings
+│   ├── pages/            # Dashboard, Analytics, Login, Settings, NotificationSettings
 │   └── services/         # api.js (HTTP client)
 ├── docs/
-│   ├── phase3-roadmap.md          # Full Phase 3 plan
-│   ├── phase3-status.md           # Sprint tracking
-│   ├── phase3-ci-guide.md         # CI/CD documentation
-│   └── phase3-notifications-spec.md # Notification system spec
+│   ├── phase3-roadmap.md               # Full Phase 3 plan
+│   ├── phase3-status.md                # Sprint tracking
+│   ├── phase3-ci-guide.md              # CI/CD documentation
+│   ├── phase3-notifications-spec.md    # Notification system spec
+│   ├── sprint-2-retrospective.md       # Sprint 2 lessons learned
+│   ├── pr-17-code-review-results.md    # QA findings
+│   └── pr-20-remediation-verification.md # Security verification
 ├── .github/workflows/
 │   └── ci.yml            # Automated testing, security, Docker builds
 └── docker-compose.yml
@@ -317,11 +325,14 @@ pytest tests/ -v
 pytest tests/ --cov=. --cov-report=html
 
 # Run specific test suites
-pytest tests/test_export.py -v              # Export endpoints
-pytest tests/test_email_sender.py -v        # Email notifications
-pytest tests/test_slack_sender.py -v        # Slack notifications
-pytest tests/test_anthropic_service.py -v   # Anthropic sync
-pytest tests/test_idempotent_upsert.py -v   # Data integrity
+pytest tests/test_export.py -v                   # Export endpoints
+pytest tests/test_email_sender.py -v             # Email notifications
+pytest tests/test_slack_sender.py -v             # Slack notifications
+pytest tests/test_webhook_validator.py -v        # Security validation
+pytest tests/test_notification_processor.py -v   # Background processor
+pytest tests/test_notifications_api.py -v        # Notification API
+pytest tests/test_anthropic_service.py -v        # Anthropic sync
+pytest tests/test_idempotent_upsert.py -v        # Data integrity
 ```
 
 **Frontend tests:**
@@ -379,28 +390,45 @@ Every push triggers:
 - X-Accel-Buffering header for nginx compatibility
 - Handles datasets of any size without memory issues
 
+**Webhook Security** (`utils/webhook_validator.py`):
+- SSRF protection with strict allowlists
+- Slack: `hooks.slack.com/services/*` only
+- Discord: `discord.com/api/webhooks/*` only
+- Teams: `*.webhook.office.com/*` only
+- HTTPS-only enforcement
+
 ---
 
-## 📋 Current Status (February 25, 2026)
+## 📋 Current Status (February 27, 2026)
 
 | Phase | Status | Completion | Notes |
 |-------|--------|------------|-------|
 | Phase 1: MVP | ✅ Complete | 100% | OpenAI sync, dashboard, auth, alerts |
 | Phase 2: Multi-service | ✅ Complete | 100% | Anthropic API + manual entry system |
-| Phase 3: Export & Alerts | 🔨 Active | 60% | Export ✅, Notifications foundation ✅, API integration 🔨 |
+| Phase 3: Export & Alerts | 🔨 Active | 70% | Sprint 1 ✅, Sprint 2 ✅, Sprint 3 📋 |
 
 **Recent Milestones:**
-- **Feb 25, 2026** — Sprint 2 Week 1 complete: Notification system foundation (email, Slack, rate limiting, CI/CD)
+- **Feb 27, 2026** — 🎉 **Sprint 2 COMPLETE**: Full notification system delivered 7 days ahead of schedule
+- **Feb 27, 2026** — Security hardening complete: SSRF + N+1 query issues resolved
+- **Feb 26, 2026** — Notification API and background processor operational
+- **Feb 25, 2026** — CI/CD pipeline deployed with automated testing and security scanning
 - **Feb 25, 2026** — Sprint 1 complete: CSV/JSON export, visual source indicators
 - **Feb 2026** — Phase 2 complete: Anthropic Claude integration, manual entry system
 
-**Next Up (Sprint 2 Week 2):**
-- Notification REST API endpoints
-- Scheduled notification processor
-- Alert trigger integration
-- User notification settings UI
+**Sprint 2 Achievement Summary:**
+- 8 PRs merged (PRs #14-21)
+- 119+ new tests added
+- 3 security issues found and fixed
+- ~3,000+ lines of code added
+- 100% QA approval rate
 
-See [docs/phase3-roadmap.md](docs/phase3-roadmap.md) for the full roadmap and [docs/phase3-status.md](docs/phase3-status.md) for live progress tracking.
+**Next Up (Sprint 3 - Starting March 2):**
+- Cost anomaly detection
+- Usage trend forecasting
+- Multi-user support with teams
+- Custom report scheduling
+
+See [docs/phase3-status.md](docs/phase3-status.md) for live progress tracking and [docs/sprint-2-retrospective.md](docs/sprint-2-retrospective.md) for detailed lessons learned.
 
 ---
 
@@ -408,9 +436,11 @@ See [docs/phase3-roadmap.md](docs/phase3-roadmap.md) for the full roadmap and [d
 
 - [Phase 3 Roadmap](docs/phase3-roadmap.md) — Feature specifications and timeline
 - [Phase 3 Status](docs/phase3-status.md) — Sprint progress and blockers
+- [Sprint 2 Retrospective](docs/sprint-2-retrospective.md) — Lessons learned and metrics
 - [CI/CD Guide](docs/phase3-ci-guide.md) — Testing, security, deployment
 - [Notification Spec](docs/phase3-notifications-spec.md) — Alert system architecture
-- [Codex Handover](docs/handover-to-codex-code-review-testing.md) — PR review checklist
+- [PR #17 Code Review](docs/pr-17-code-review-results.md) — Security findings
+- [PR #20 Verification](docs/pr-20-remediation-verification.md) — Security verification
 - [Setup Quickstart](docs/setup-quickstart.md) — Installation and configuration
 
 ---
@@ -424,7 +454,15 @@ See [docs/phase3-roadmap.md](docs/phase3-roadmap.md) for the full roadmap and [d
 - **Ownership Checks**: All endpoints verify user permissions
 - **Security Scanning**: Automated Bandit + npm audit in CI/CD
 - **Dependency Updates**: Trivy scans for vulnerable packages
+- **SSRF Protection**: Webhook URL validation with strict allowlists
+- **Input Validation**: Defensive parsing prevents injection attacks
 - **Environment Secrets**: Never committed to git (use `.env`)
+
+**Security Audit Trail:**
+- Feb 27, 2026: SSRF vulnerability identified and fixed (PR #20)
+- Feb 27, 2026: N+1 query issue identified and fixed (PR #20)
+- Feb 27, 2026: Input validation hardened (PR #20)
+- All findings verified by Codex QA (PR #21)
 
 **Vulnerability Disclosure**: Please report security issues to the repository owner privately.
 
@@ -438,8 +476,8 @@ This is an **AI-native project** built collaboratively by multiple AI agents:
 |-------|------|---------------|
 | **Codex** (ChatGPT) | Initial Implementation | Phase 1 MVP, Phase 2 multi-service support |
 | **Perplexity** | Research & Planning | API analysis, roadmap planning, documentation |
-| **Claude Code** | Feature Development | Phase 3 export system, notification foundation, CI/CD pipeline |
-| **Codex** | Quality Assurance | PR reviews, testing, documentation |
+| **Claude Code** | Feature Development | Phase 3 export, notifications, CI/CD pipeline, security fixes |
+| **Codex** | Quality Assurance | PR reviews, security audits, testing |
 
 **Human oversight**: Richard Ham ([@zebadee2kk](https://github.com/zebadee2kk)) — Project management and architecture decisions
 
@@ -462,22 +500,17 @@ OpenAI integration, core dashboard, authentication, basic alerts
 ### ✅ Phase 2 — Multi-Service (Complete)
 Anthropic Claude, manual entry system, idempotent data sync
 
-### 🔨 Phase 3 — Export & Advanced Alerts (60% Complete)
-- ✅ CSV/JSON export with streaming
-- ✅ Visual source indicators
-- ✅ Notification infrastructure (email, Slack, rate limiting)
-- ✅ CI/CD pipeline with automated testing
-- 🔨 Notification API and UI (in progress)
-- 📋 Scheduled notification processor
-- 📋 Alert trigger integration
+### 🔨 Phase 3 — Export & Advanced Alerts (70% Complete)
+- ✅ Sprint 1: CSV/JSON export with streaming, visual source indicators
+- ✅ Sprint 2: Complete notification system (email, Slack, Discord, Teams), CI/CD, security hardening
+- 📋 Sprint 3: Anomaly detection, usage forecasting, multi-user support, custom reports
 
 ### 📋 Phase 4 — Analytics & Teams (Planned)
-- Cost anomaly detection with ML
-- Usage trend forecasting
-- Multi-user support with role-based access
-- Team dashboards and shared accounts
-- Custom report scheduling
-- Webhook notifications for third-party integrations
+- Advanced ML-based anomaly detection
+- Predictive cost modeling
+- Team dashboards with role-based access
+- Custom report templates
+- Webhook integrations for third-party tools
 
 See [docs/phase3-roadmap.md](docs/phase3-roadmap.md) for detailed specifications.
 
@@ -508,11 +541,12 @@ IT Director | Cybersecurity Leader | London, UK
 - **Slack** for webhook-based notification support
 - **Codecov** for test coverage reporting
 - The open-source community for the excellent tools that power this project
+- All the AI agents who collaborated on this project
 
 ---
 
 **Built with ❤️ for developers who want to understand and control their AI spending.**
 
-**Status**: 🟢 Active Development | Phase 3 Sprint 2 | Production-Ready
+**Status**: 🟢 Active Development | Phase 3 Sprint 2 Complete | Production-Ready
 
-**Last Updated**: February 25, 2026
+**Last Updated**: February 27, 2026
