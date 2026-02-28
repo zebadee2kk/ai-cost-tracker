@@ -80,4 +80,20 @@ export const sendTestNotification = (channel, data) =>
 export const getNotificationRateLimits = () =>
   api.get("/notifications/rate-limits");
 
+// --- Analytics ---
+export const getAnalyticsTrends = (accountId, params) =>
+  api.get(`/analytics/trends/${accountId}`, { params });
+export const getAnalyticsForecast = (accountId, params) =>
+  api.get(`/analytics/forecast/${accountId}`, { params });
+export const getAnalyticsAnomalies = (accountId, params) =>
+  api.get(`/analytics/anomalies/${accountId}`, { params });
+export const triggerAnomalyDetection = (accountId, data) =>
+  api.post(`/analytics/anomalies/${accountId}/detect`, data || {});
+export const acknowledgeAnomaly = (anomalyId) =>
+  api.post(`/analytics/anomalies/${anomalyId}/acknowledge`);
+export const getAnalyticsConfig = (accountId) =>
+  api.get(`/analytics/config/${accountId}`);
+export const updateAnalyticsConfig = (accountId, data) =>
+  api.put(`/analytics/config/${accountId}`, data);
+
 export default api;

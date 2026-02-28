@@ -49,6 +49,7 @@ def create_app(config=None):
     from routes.usage import usage_bp
     from routes.alerts import alerts_bp
     from routes.notifications import notifications_bp
+    from routes.analytics import analytics_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(accounts_bp, url_prefix="/api/accounts")
@@ -56,6 +57,7 @@ def create_app(config=None):
     app.register_blueprint(usage_bp, url_prefix="/api/usage")
     app.register_blueprint(alerts_bp, url_prefix="/api/alerts")
     app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
+    app.register_blueprint(analytics_bp, url_prefix="/api/analytics")
 
     # Start notification dispatcher (every 5 min) – skipped during testing
     if not app.config.get("TESTING"):

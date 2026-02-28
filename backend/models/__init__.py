@@ -7,6 +7,7 @@ from .cost_projection import CostProjection
 from .notification_preference import NotificationPreference
 from .notification_queue import NotificationQueue
 from .notification_history import NotificationHistory
+from .anomaly_detection import AnomalyDetectionConfig, DetectedAnomaly
 
 __all__ = [
     "User",
@@ -18,4 +19,6 @@ __all__ = [
     "NotificationPreference",
     "NotificationQueue",
     "NotificationHistory",
+    "AnomalyDetectionConfig",
+    "DetectedAnomaly",
 ]
