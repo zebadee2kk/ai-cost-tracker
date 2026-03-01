@@ -98,21 +98,29 @@ npm start
 
 ```bash
 # From project root directory
-docker-compose up
+docker compose up -d --build
 
 # This will start:
 # - Backend API on http://localhost:5000
 # - Frontend on http://localhost:3000
 # - PostgreSQL database on localhost:5432
-# - Redis cache (optional)
 
-# To stop:
-docker-compose down
+# Run migrations and seed data (first time only)
+docker compose exec backend flask db upgrade
+docker compose exec backend python scripts/seed_services.py
 
-# To reset database:
-docker-compose down -v
-docker-compose up
+# Watch logs
+docker compose logs -f
+
+# To stop (keeps data):
+docker compose down
+
+# To reset database (destroys all data):
+docker compose down -v
 ```
+
+> **Note:** Use `docker compose` (with a space), not `docker-compose`. The hyphenated
+> form is the legacy standalone CLI; the plugin form is standard from Docker 20.10+.
 
 ---
 
@@ -175,6 +183,7 @@ npm start
 FLASK_ENV=development
 FLASK_APP=app.py
 SECRET_KEY=your_jwt_secret_key_here
+JWT_SECRET_KEY=your_jwt_secret_key_here  # Required — can match SECRET_KEY
 ENCRYPTION_KEY=your_encryption_key_here
 
 # Database
@@ -549,6 +558,22 @@ const MemoizedChart = React.memo(Chart, (prevProps, nextProps) => {
 ---
 
 ## Troubleshooting
+
+### Known Deployment Issues (Resolved)
+
+**Issue**: `ModuleNotFoundError: No module named 'psycopg2'` (backend crashes on start)
+- **Cause**: `psycopg2-binary` was missing from `requirements.txt`
+- **Status**: ✅ Fixed — `psycopg2-binary==2.9.10` added (commit 558e1b6)
+
+**Issue**: `npm ci` fails during Docker build with "existing package-lock.json" error
+- **Cause**: No `package-lock.json` in the repo; `npm ci` requires a lockfile
+- **Status**: ✅ Fixed — `frontend/Dockerfile` changed to `npm install` (commit 558e1b6)
+
+**Issue**: `curl` returns 400 when using `!` in password (e.g. `SecurePass123!`)
+- **Cause**: Bash history expansion interprets `!` inside double-quoted strings
+- **Solution**: Use single quotes or escape: `curl -d 'SecurePass123\!'`, or use Python `requests`/`urllib`
+
+---
 
 ### Common Issues
 
