@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Node](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
-[![Phase](https://img.shields.io/badge/Phase-3%20Sprint%202%20Complete-brightgreen)](docs/phase3-status.md)
+[![Phase](https://img.shields.io/badge/Phase-3%20Sprint%203%20Week%201%20Complete-brightgreen)](docs/phase3-status.md)
 
 ---
 
@@ -66,11 +66,15 @@
 - ✅ **Frontend UI**: NotificationSettingsPage with channel configuration
 - ✅ **Security Hardening**: SSRF protection, N+1 query elimination, input validation
 
-#### 📋 Sprint 3 — Advanced Analytics (Planned - March 2026)
-- 📋 Cost anomaly detection with statistical models
-- 📋 Usage trend analysis and forecasting
+#### ✅ Sprint 3 Week 1 — Advanced Analytics (Complete - Feb 28, 2026)
+- ✅ Cost anomaly detection (z-score, rolling 30-day baseline, configurable σ thresholds)
+- ✅ Usage trend analysis and forecasting (linear regression, 30/60/90-day, 95% CI bands)
+- ✅ Moving averages (7d/30d) and growth rate calculations
+- ✅ Analytics REST API — 7 endpoints under `/api/analytics`
+
+#### 📋 Sprint 3 Week 2 — Remaining (March 2026)
+- 📋 Custom report scheduling (email/Slack delivery)
 - 📋 Multi-user support with team dashboards
-- 📋 Custom report scheduling
 
 ---
 
@@ -90,24 +94,23 @@ git clone https://github.com/zebadee2kk/ai-cost-tracker.git
 cd ai-cost-tracker
 
 # 2. Generate required secrets
-python -c "from cryptography.fernet import Fernet; print('ENCRYPTION_KEY=' + Fernet.generate_key().decode())"
-python -c "import secrets; print('SECRET_KEY=' + secrets.token_hex(32))"
+python3 -c "from cryptography.fernet import Fernet; print('ENCRYPTION_KEY=' + Fernet.generate_key().decode())"
+python3 -c "import secrets; print('SECRET_KEY=' + secrets.token_hex(32))"
+python3 -c "import secrets; print('JWT_SECRET_KEY=' + secrets.token_hex(32))"
 
 # 3. Configure environment
 cp .env.example .env
-# Edit .env and add:
-# - Generated ENCRYPTION_KEY and SECRET_KEY
-# - SENDGRID_API_KEY (for email notifications)
-# - SLACK_WEBHOOK_URL (for Slack notifications)
+# Edit .env and fill in the generated secrets above.
+# Optional: add SENDGRID_API_KEY and SLACK_WEBHOOK_URL for notifications.
 
 # 4. Start all services
-docker-compose up -d
+docker compose up -d --build
 
-# 5. Apply database migrations (includes Phase 3 notification tables)
-docker-compose exec backend flask db upgrade
+# 5. Apply database migrations
+docker compose exec backend flask db upgrade
 
 # 6. Seed initial service data
-docker-compose exec backend python scripts/seed_services.py
+docker compose exec backend python scripts/seed_services.py
 ```
 
 App is available at:
@@ -239,7 +242,7 @@ Configure alerts to stay informed about your AI spending:
 | **Anthropic Claude** | ✅ Live | Automatic API sync | Requires Admin API key (`sk-ant-admin-...`) |
 | **Groq** | ✅ Live | Manual entry | No billing API; dashboard-only |
 | **Perplexity** | ✅ Live | Manual entry | No billing API; invoice tracking |
-| **GitHub Copilot** | 📋 Planned | Manual entry | No usage API available |
+| **GitHub Copilot** | ✅ Live | Manual entry | No usage API; subscription tracking |
 | **Local LLMs** | 📋 Planned | Manual entry | Ollama, LM Studio, etc. |
 
 ---
@@ -301,13 +304,17 @@ ai-cost-tracker/
 │   ├── pages/            # Dashboard, Analytics, Login, Settings, NotificationSettings
 │   └── services/         # api.js (HTTP client)
 ├── docs/
-│   ├── phase3-roadmap.md               # Full Phase 3 plan
-│   ├── phase3-status.md                # Sprint tracking
-│   ├── phase3-ci-guide.md              # CI/CD documentation
-│   ├── phase3-notifications-spec.md    # Notification system spec
-│   ├── sprint-2-retrospective.md       # Sprint 2 lessons learned
-│   ├── pr-17-code-review-results.md    # QA findings
-│   └── pr-20-remediation-verification.md # Security verification
+│   ├── phase3-roadmap.md                       # Full Phase 3 plan
+│   ├── phase3-status.md                        # Sprint tracking
+│   ├── phase3-ci-guide.md                      # CI/CD documentation
+│   ├── phase3-notifications-spec.md            # Notification system spec
+│   ├── phase3-analytics-spec.md                # Analytics & forecasting spec
+│   ├── sprint-2-retrospective.md               # Sprint 2 lessons learned
+│   ├── local-deployment-log.md                 # Local dev deployment log
+│   ├── production-deployment.md                # Production deployment guide
+│   ├── production-readiness-audit-2026-03-01.md # Codex security audit
+│   ├── pr-17-code-review-results.md            # QA findings
+│   └── pr-20-remediation-verification.md       # Security verification
 ├── .github/workflows/
 │   └── ci.yml            # Automated testing, security, Docker builds
 └── docker-compose.yml
@@ -319,20 +326,21 @@ ai-cost-tracker/
 cd backend
 
 # Run all tests
-pytest tests/ -v
+python -m pytest tests/ -v
 
 # Run with coverage
-pytest tests/ --cov=. --cov-report=html
+python -m pytest tests/ --cov=. --cov-report=html
 
 # Run specific test suites
-pytest tests/test_export.py -v                   # Export endpoints
-pytest tests/test_email_sender.py -v             # Email notifications
-pytest tests/test_slack_sender.py -v             # Slack notifications
-pytest tests/test_webhook_validator.py -v        # Security validation
-pytest tests/test_notification_processor.py -v   # Background processor
-pytest tests/test_notifications_api.py -v        # Notification API
-pytest tests/test_anthropic_service.py -v        # Anthropic sync
-pytest tests/test_idempotent_upsert.py -v        # Data integrity
+python -m pytest tests/test_export.py -v                   # Export endpoints
+python -m pytest tests/test_email_sender.py -v             # Email notifications
+python -m pytest tests/test_slack_sender.py -v             # Slack notifications
+python -m pytest tests/test_webhook_validator.py -v        # Security validation
+python -m pytest tests/test_notification_processor.py -v   # Background processor
+python -m pytest tests/test_notifications_api.py -v        # Notification API
+python -m pytest tests/test_anthropic_service.py -v        # Anthropic sync
+python -m pytest tests/test_idempotent_upsert.py -v        # Data integrity
+python -m pytest tests/test_analytics.py -v               # Analytics & forecasting
 ```
 
 **Frontend tests:**
@@ -399,49 +407,42 @@ Every push triggers:
 
 ---
 
-## 📋 Current Status (February 27, 2026)
+## 📋 Current Status (March 1, 2026)
 
 | Phase | Status | Completion | Notes |
 |-------|--------|------------|-------|
 | Phase 1: MVP | ✅ Complete | 100% | OpenAI sync, dashboard, auth, alerts |
 | Phase 2: Multi-service | ✅ Complete | 100% | Anthropic API + manual entry system |
-| Phase 3: Export & Alerts | 🔨 Active | 70% | Sprint 1 ✅, Sprint 2 ✅, Sprint 3 📋 |
+| Phase 3: Export & Alerts | 🔨 Active | 85% | Sprint 1 ✅, Sprint 2 ✅, Sprint 3 Week 1 ✅ |
 
 **Recent Milestones:**
+- **Mar 1, 2026** — Production-readiness audit complete (Codex PR #28); all P0/P1 items resolved
+- **Mar 1, 2026** — Local deployment verified; Phase 3A integration-ready
+- **Feb 28, 2026** — 🎉 **Sprint 3 Week 1 COMPLETE** (PR #22): anomaly detection + forecasting delivered
 - **Feb 27, 2026** — 🎉 **Sprint 2 COMPLETE**: Full notification system delivered 7 days ahead of schedule
-- **Feb 27, 2026** — Security hardening complete: SSRF + N+1 query issues resolved
-- **Feb 26, 2026** — Notification API and background processor operational
-- **Feb 25, 2026** — CI/CD pipeline deployed with automated testing and security scanning
-- **Feb 25, 2026** — Sprint 1 complete: CSV/JSON export, visual source indicators
-- **Feb 2026** — Phase 2 complete: Anthropic Claude integration, manual entry system
+- **Feb 27, 2026** — Security hardening complete: SSRF + N+1 query issues resolved (PR #20, verified PR #21)
 
-**Sprint 2 Achievement Summary:**
-- 8 PRs merged (PRs #14-21)
-- 119+ new tests added
-- 3 security issues found and fixed
-- ~3,000+ lines of code added
-- 100% QA approval rate
+**Next Up (Sprint 3 Week 2 — March 2-8):**
+- Custom report scheduling (APScheduler + email/Slack)
+- Multi-user support with team dashboards
+- Phase 3A control-tower integration
 
-**Next Up (Sprint 3 - Starting March 2):**
-- Cost anomaly detection
-- Usage trend forecasting
-- Multi-user support with teams
-- Custom report scheduling
-
-See [docs/phase3-status.md](docs/phase3-status.md) for live progress tracking and [docs/sprint-2-retrospective.md](docs/sprint-2-retrospective.md) for detailed lessons learned.
+See [docs/phase3-status.md](docs/phase3-status.md) for live sprint tracking.
 
 ---
 
 ## 📚 Documentation
 
+- [Setup Quickstart](docs/setup-quickstart.md) — Installation and configuration
+- [Production Deployment](docs/production-deployment.md) — HTTPS, secrets, DB credentials
+- [Production Readiness Audit](docs/production-readiness-audit-2026-03-01.md) — Codex security audit (all items resolved)
+- [Local Deployment Log](docs/local-deployment-log.md) — Phase 3A local dev session log
 - [Phase 3 Roadmap](docs/phase3-roadmap.md) — Feature specifications and timeline
-- [Phase 3 Status](docs/phase3-status.md) — Sprint progress and blockers
+- [Phase 3 Status](docs/phase3-status.md) — Sprint progress tracker
 - [Sprint 2 Retrospective](docs/sprint-2-retrospective.md) — Lessons learned and metrics
 - [CI/CD Guide](docs/phase3-ci-guide.md) — Testing, security, deployment
 - [Notification Spec](docs/phase3-notifications-spec.md) — Alert system architecture
-- [PR #17 Code Review](docs/pr-17-code-review-results.md) — Security findings
-- [PR #20 Verification](docs/pr-20-remediation-verification.md) — Security verification
-- [Setup Quickstart](docs/setup-quickstart.md) — Installation and configuration
+- [Analytics Spec](docs/phase3-analytics-spec.md) — Anomaly detection & forecasting design
 
 ---
 
@@ -459,6 +460,9 @@ See [docs/phase3-status.md](docs/phase3-status.md) for live progress tracking an
 - **Environment Secrets**: Never committed to git (use `.env`)
 
 **Security Audit Trail:**
+- Mar 1, 2026: Full production-readiness audit (Codex PR #28) — all P0/P1 items resolved
+- Mar 1, 2026: Fail-fast secret validation added for production startup
+- Mar 1, 2026: DB credentials parameterized; secrets never hardcoded in compose
 - Feb 27, 2026: SSRF vulnerability identified and fixed (PR #20)
 - Feb 27, 2026: N+1 query issue identified and fixed (PR #20)
 - Feb 27, 2026: Input validation hardened (PR #20)
@@ -500,10 +504,11 @@ OpenAI integration, core dashboard, authentication, basic alerts
 ### ✅ Phase 2 — Multi-Service (Complete)
 Anthropic Claude, manual entry system, idempotent data sync
 
-### 🔨 Phase 3 — Export & Advanced Alerts (70% Complete)
+### 🔨 Phase 3 — Export & Advanced Alerts (85% Complete)
 - ✅ Sprint 1: CSV/JSON export with streaming, visual source indicators
 - ✅ Sprint 2: Complete notification system (email, Slack, Discord, Teams), CI/CD, security hardening
-- 📋 Sprint 3: Anomaly detection, usage forecasting, multi-user support, custom reports
+- ✅ Sprint 3 Week 1: Anomaly detection, usage forecasting, analytics API
+- 📋 Sprint 3 Week 2: Custom report scheduling, multi-user support
 
 ### 📋 Phase 4 — Analytics & Teams (Planned)
 - Advanced ML-based anomaly detection
@@ -547,6 +552,6 @@ IT Director | Cybersecurity Leader | London, UK
 
 **Built with ❤️ for developers who want to understand and control their AI spending.**
 
-**Status**: 🟢 Active Development | Phase 3 Sprint 2 Complete | Production-Ready
+**Status**: 🟢 Active Development | Phase 3 Sprint 3 Week 1 Complete | Production-Ready
 
-**Last Updated**: February 27, 2026
+**Last Updated**: March 1, 2026

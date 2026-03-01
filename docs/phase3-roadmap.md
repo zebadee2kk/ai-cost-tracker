@@ -24,11 +24,11 @@ Phase 3 transforms the AI Cost Tracker from a monitoring tool into a **proactive
 
 | Feature | Priority | Effort | Status | Dependencies | Document |
 |---------|----------|--------|--------|--------------|----------|
-| **CSV/JSON Export** | P0 | 1 week | ⏳ Ready | None | [phase3-export-spec.md](./phase3-export-spec.md) |
-| **Visual Source Badges** | P0 | 1 week | ⏳ Ready | None | [phase3-visual-indicators-spec.md](./phase3-visual-indicators-spec.md) |
-| **CI/CD Pipeline** | P1 | 1 week | ⏳ Ready | GitHub Actions | [phase3-ci-guide.md](./phase3-ci-guide.md) |
-| **Notifications** | P1 | 2-3 weeks | ⏳ Ready | SendGrid account | [phase3-notifications-spec.md](./phase3-notifications-spec.md) |
-| **Analytics & Forecasting** | P2 | 2-3 weeks | ⏳ Ready | scikit-learn | [phase3-analytics-spec.md](./phase3-analytics-spec.md) |
+| **CSV/JSON Export** | P0 | 1 week | ✅ Complete (PR #12) | None | [phase3-export-spec.md](./phase3-export-spec.md) |
+| **Visual Source Badges** | P0 | 1 week | ✅ Complete (PR #12) | None | [phase3-visual-indicators-spec.md](./phase3-visual-indicators-spec.md) |
+| **CI/CD Pipeline** | P1 | 1 week | ✅ Complete (PR #14) | GitHub Actions | [phase3-ci-guide.md](./phase3-ci-guide.md) |
+| **Notifications** | P1 | 2-3 weeks | ✅ Complete (PRs #16-17) | SendGrid account | [phase3-notifications-spec.md](./phase3-notifications-spec.md) |
+| **Analytics & Forecasting** | P2 | 2-3 weeks | ✅ Complete (PR #22) | numpy/scipy | [phase3-analytics-spec.md](./phase3-analytics-spec.md) |
 
 ---
 
