@@ -7,7 +7,7 @@ from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
-from config import get_config
+from config import get_config, validate_production_secrets
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -35,7 +35,12 @@ def create_app(config=None):
     jwt.init_app(app)
     CORS(app, origins=app.config["CORS_ORIGINS"])
 
-    # Validate encryption key is set
+    # In production, hard-fail if any required secret is missing or default
+    cfg_obj = config or get_config()
+    if os.getenv("FLASK_ENV") == "production":
+        validate_production_secrets(cfg_obj)
+
+    # In non-production, warn if encryption key is missing
     if not app.config.get("ENCRYPTION_KEY"):
         app.logger.warning(
             "ENCRYPTION_KEY is not set — API key encryption will fail at runtime. "

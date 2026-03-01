@@ -50,6 +50,30 @@ class DevelopmentConfig(Config):
     ).replace("postgres://", "postgresql://", 1)
 
 
+_INSECURE_DEFAULTS = {"change-me-in-production", "secret", ""}
+
+
+def validate_production_secrets(config_obj):
+    """Raise RuntimeError if any required secret is missing or still set to a
+    known-insecure default value.  Called by create_app() in production mode."""
+    checks = {
+        "SECRET_KEY": config_obj.SECRET_KEY,
+        "JWT_SECRET_KEY": config_obj.JWT_SECRET_KEY,
+        "ENCRYPTION_KEY": config_obj.ENCRYPTION_KEY or "",
+    }
+    failures = [
+        name
+        for name, val in checks.items()
+        if not val or val in _INSECURE_DEFAULTS
+    ]
+    if failures:
+        raise RuntimeError(
+            f"Production startup aborted — insecure or missing secrets: "
+            f"{', '.join(failures)}. "
+            "Set strong random values in the environment before starting."
+        )
+
+
 class ProductionConfig(Config):
     DEBUG = False
 

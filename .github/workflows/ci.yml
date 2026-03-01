@@ -40,7 +40,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           cd backend
-          pytest tests/ -v \
+          python -m pytest tests/ -v \
             --cov=. \
             --cov-report=xml \
             --cov-report=html \
@@ -49,6 +49,7 @@ jobs:
         env:
           FLASK_ENV: testing
           SECRET_KEY: test-secret-key-for-ci-only
+          JWT_SECRET_KEY: test-jwt-secret-key-for-ci-only
           ENCRYPTION_KEY: tXKK1nN-OlnqTmRHlHGGuwR3GwPFzjqfIQcvDHv6D0U=
 
       - name: Check coverage threshold

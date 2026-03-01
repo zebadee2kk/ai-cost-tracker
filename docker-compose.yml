@@ -1,19 +1,17 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ai_user
-      POSTGRES_PASSWORD: ai_password
-      POSTGRES_DB: ai_tracker
+      POSTGRES_USER: ${POSTGRES_USER:-ai_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ai_password}
+      POSTGRES_DB: ${POSTGRES_DB:-ai_tracker}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ai_user -d ai_tracker"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ai_user} -d ${POSTGRES_DB:-ai_tracker}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,7 +24,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://ai_user:ai_password@db:5432/ai_tracker
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ai_user}:${POSTGRES_PASSWORD:-ai_password}@db:5432/${POSTGRES_DB:-ai_tracker}
     ports:
       - "5000:5000"
     depends_on:
