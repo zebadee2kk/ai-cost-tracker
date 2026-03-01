@@ -17,7 +17,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # JWT
-    JWT_SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
+    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", os.getenv("SECRET_KEY", "change-me-in-production"))
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
 
     # Encryption key for API keys at rest (Fernet)
