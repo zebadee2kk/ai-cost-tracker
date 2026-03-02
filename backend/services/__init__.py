@@ -6,15 +6,21 @@ Add new service integrations here once implemented.
 
 from services.openai_service import OpenAIService
 from services.anthropic_service import AnthropicService
+from services.groq_service import GroqService
+from services.perplexity_service import PerplexityService
+from services.mistral_service import MistralService
 
 # Mapping from Service.name (case-sensitive, as seeded) to client class.
-# Services without an API integration (Groq, Perplexity) are omitted;
-# they use the manual entry workflow instead.
+# Groq, Perplexity, and Mistral have no usage history API; their validate_credentials()
+# still works for connection testing, but sync uses the manual entry workflow.
 SERVICE_CLIENTS = {
     "ChatGPT": OpenAIService,
     "OpenAI": OpenAIService,
     "Anthropic": AnthropicService,
     "Claude": AnthropicService,
+    "Groq": GroqService,
+    "Perplexity": PerplexityService,
+    "Mistral": MistralService,
 }
 
 

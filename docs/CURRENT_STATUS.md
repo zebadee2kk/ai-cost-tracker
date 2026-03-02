@@ -1,14 +1,14 @@
 # AI Cost Tracker - Current Status
 
-**Last Updated:** March 2, 2026, 7:55 PM GMT  
-**Phase:** Provider Service Implementation  
-**Status:** 4/6 Providers Complete
+**Last Updated:** March 2, 2026, 9:00 PM GMT
+**Phase:** Provider Service Implementation
+**Status:** 5/6 Providers Complete
 
 ---
 
 ## Implementation Progress
 
-### ✅ Completed Providers (4/6)
+### ✅ Completed Providers (5/6)
 
 #### 1. Anthropic Claude ✅
 - **Status:** Production ready
@@ -48,32 +48,34 @@
 - **Limitation:** No usage API - must track per-request
 - **Documentation:** `docs/providers/perplexity-api-research.md`
 
-#### 4. OpenAI ⚠️
-- **Status:** Partially complete
+#### 4. OpenAI ✅
+- **Status:** Production ready
 - **File:** `backend/services/openai_service.py`
-- **Completed:**
-  - Basic API integration
-  - Credential validation
-- **TODO:**
-  - Extract rate limit headers
-  - Add diagnostic logging
-  - Implement `call_with_tracking()` for per-request logging
+- **Features:**
+  - Billing/usage API integration
+  - Credential validation (models endpoint)
+  - Rate limit header extraction (`_extract_rate_limits()`)
+  - Full diagnostic logging (all requests/responses)
+  - Sync attempt/result logging
 - **Documentation:** `docs/providers/openai-api-research.md`
+
+#### 5. Mistral AI ✅
+- **Status:** Production ready
+- **File:** `backend/services/mistral_service.py`
+- **Features:**
+  - OpenAI-compatible chat completions (`https://api.mistral.ai/v1`)
+  - Per-request tracking via `call_with_tracking()`
+  - Local cost calculation (March 2026 pricing table)
+  - `Retry-After` header respected on 429s
+  - `get_usage()` returns empty with explanation
+- **Limitation:** No usage API — must track per-request
+- **Key Format:** No standard prefix (any non-empty string accepted)
+- **Pricing:** 9 model tiers from $0.02 to $6.00/1M tokens
+- **Documentation:** `docs/providers/mistral-api-research.md` (TODO)
 
 ---
 
-### ⏳ Remaining Providers (2/6)
-
-#### 5. Mistral AI ⏳
-- **Priority:** HIGH (easy - OpenAI-compatible)
-- **Estimated Time:** 2-3 hours
-- **Strategy:** Copy Groq pattern, OpenAI-compatible endpoints
-- **Key Format:** TBD (check docs)
-- **Next Steps:**
-  1. Research Mistral API authentication
-  2. Check if usage API exists
-  3. Implement using Groq service as template
-  4. Test with real API key
+### ⏳ Remaining Providers (1/6)
 
 #### 6. Google Gemini ⏳
 - **Priority:** MEDIUM (complex - GCP setup)
@@ -117,38 +119,28 @@
 
 ### 🔴 Critical
 
-**Issue #1: No Data in Dashboard**
-- **Symptom:** Dashboard shows zero usage despite API calls
-- **Root Cause:** Likely Anthropic admin key confusion
-- **Investigation:**
-  - Check if using `sk-ant-api-` instead of `sk-ant-admin-`
-  - Verify account has organization admin role
-  - Test connectivity with `backend/scripts/test_providers.py`
-- **Next Steps:**
-  1. Run diagnostic test script
-  2. Verify API key type in `.env`
-  3. Check logs for authentication errors
-
-### 🟡 High Priority
-
-**Issue #2: OpenAI Service Incomplete**
-- **Missing:** Rate limit header extraction
-- **Impact:** Can't track quota pressure for OpenAI
-- **Solution:** Add `_extract_rate_limits()` method
-- **Template:** See `backend/services/groq_service.py` lines 180-195
-
-**Issue #3: No Provider Connectivity Tests**
-- **Missing:** Automated test suite
-- **Impact:** Can't verify all providers working
-- **Solution:** Complete `backend/scripts/test_providers.py`
-- **Template:** See `docs/IMPLEMENTATION_COMPLETE_GUIDE.md`
+**Issue #1: No Data in Dashboard** — Root Causes Diagnosed
+- **Confirmed causes:**
+  1. No API keys configured in `.env` (all commented out)
+  2. Docker not running — no live database
+  3. Anthropic requires `sk-ant-admin-...` key (NOT `sk-ant-api-...`)
+  4. Groq/Perplexity/Mistral have no usage API — need per-request tracking
+- **Resolution Steps:**
+  1. Configure real API keys in `.env`
+  2. Start Docker: `docker-compose up -d`
+  3. Run diagnostics: `python backend/scripts/test_providers.py`
+  4. For Anthropic: generate Admin key at Console → Settings → Organization
 
 ### 🟢 Low Priority
 
-**Issue #4: Missing Integration Tests**
+**Issue #2: Missing Integration Tests**
 - Tests for database writes
 - Tests for cost calculations
 - Tests for rate limit warnings
+
+**Issue #3: No Mistral API Research Doc**
+- `docs/providers/mistral-api-research.md` not yet written
+- Key facts are inline in `backend/services/mistral_service.py` docstring
 
 ---
 
@@ -182,12 +174,13 @@
 ### Service Implementations
 ```
 backend/services/
-├── anthropic_service.py      ✅ Complete (19.3 KB)
-├── groq_service.py           ✅ Complete (12.7 KB)
-├── perplexity_service.py     ✅ Complete (16.3 KB)
-├── openai_service.py         ⚠️  Partial (4.1 KB)
+├── anthropic_service.py      ✅ Complete
+├── groq_service.py           ✅ Complete
+├── perplexity_service.py     ✅ Complete
+├── openai_service.py         ✅ Complete (rate limits + diagnostic logging added)
+├── mistral_service.py        ✅ Complete (new — per-request, local cost calc)
 ├── base_service.py           ✅ Base class
-└── __init__.py
+└── __init__.py               ✅ All 5 providers registered
 ```
 
 ### Utilities
@@ -214,29 +207,29 @@ docs/
 
 ## Next Immediate Actions
 
-### Priority 1: Diagnose Current Issues (1-2 hours)
-1. Run provider connectivity tests
-2. Check Anthropic API key type
-3. Verify database is receiving data
-4. Review error logs
+### Priority 1: Get the Stack Running (30 min) 🔴
+1. Configure API keys in `.env` (use real keys)
+2. Start Docker: `docker-compose up -d`
+3. Run diagnostics: `python backend/scripts/test_providers.py`
+4. For Anthropic: confirm key starts with `sk-ant-admin-`
 
-### Priority 2: Complete OpenAI Service (2-3 hours)
-1. Add rate limit header extraction
-2. Add diagnostic logging
-3. Implement `call_with_tracking()`
-4. Test with real API key
-
-### Priority 3: Implement Mistral Service (2-3 hours)
-1. Research Mistral API docs
-2. Copy Groq service template
-3. Adjust for Mistral specifics
-4. Test and verify
-
-### Priority 4: Apply Database Migration (1 hour)
+### Priority 2: Apply Database Migration (1 hour) 🟡
 1. Backup production database
 2. Test migration in staging
-3. Apply to production
+3. Apply to production: `flask db upgrade`
 4. Verify new columns exist
+
+### Priority 3: Test All Services End-to-End (1-2 hours) 🟡
+1. Run `python backend/scripts/test_providers.py` with real keys
+2. Use `POST /api/accounts/<id>/test` for each account
+3. Trigger sync: `POST /api/accounts/<id>/sync` (OpenAI/Anthropic)
+4. Check dashboard shows data
+
+### Priority 4: Implement Google Gemini (1-2 days) 🟢
+1. Set up GCP project
+2. Enable Vertex AI API
+3. Create service account with BigQuery access
+4. Implement `backend/services/google_gemini_service.py`
 
 ---
 
@@ -264,8 +257,8 @@ docs/
 
 ## Success Metrics
 
-- [x] 4/6 providers implemented
-- [ ] 6/6 providers implemented
+- [x] 5/6 providers implemented
+- [ ] 6/6 providers implemented (Gemini remaining)
 - [ ] All providers tested with real keys
 - [x] Enhanced schema designed
 - [ ] Enhanced schema applied to production
@@ -279,7 +272,7 @@ docs/
 ## Key Decisions & Context
 
 ### Why Per-Request Tracking?
-**Groq and Perplexity have no usage APIs.** This means:
+**Groq, Perplexity, and Mistral have no usage APIs.** This means:
 - Can't fetch historical usage data
 - Must log every API call immediately
 - Must calculate costs locally
@@ -339,4 +332,4 @@ If blocked:
 
 ---
 
-**Status Summary:** 4/6 providers complete, enhanced schema ready, diagnostic infrastructure in place. Next focus: diagnose data pipeline issues, complete OpenAI service, implement Mistral.
+**Status Summary:** 5/6 providers complete (Anthropic, OpenAI, Groq, Perplexity, Mistral). Enhanced schema ready, diagnostic script available, manual sync endpoint added. Next focus: start Docker, configure API keys, apply database migration, test end-to-end, implement Google Gemini.

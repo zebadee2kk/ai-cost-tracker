@@ -115,6 +115,91 @@ def delete_account(account_id):
     return jsonify({"message": "Account deleted."}), 200
 
 
+@accounts_bp.route("/<int:account_id>/sync", methods=["POST"])
+@jwt_required()
+def sync_account(account_id):
+    """Manually trigger a usage sync for one account.
+
+    Only works for pull-based services (OpenAI, Anthropic).
+    Per-request services (Groq, Perplexity, Mistral) return a 422 explaining
+    that usage must be captured via call_with_tracking().
+    """
+    user_id = _get_current_user_id()
+    account = _own_account_or_404(account_id, user_id)
+    if not account:
+        return jsonify({"error": "Account not found."}), 404
+
+    if not account.api_key:
+        return jsonify({"error": "No API key configured for this account."}), 400
+
+    service_name = account.service.name if account.service else ""
+
+    # Per-request services have no pull-based sync
+    PER_REQUEST_SERVICES = {"Groq", "Perplexity", "Mistral"}
+    if service_name in PER_REQUEST_SERVICES:
+        return jsonify({
+            "error": f"{service_name} has no usage history API.",
+            "message": (
+                f"{service_name} usage must be captured per-request via call_with_tracking(). "
+                "Use the manual entry endpoint (POST /api/usage/manual) to record usage."
+            ),
+            "code": "NO_USAGE_API",
+        }), 422
+
+    from services import get_service_client
+    from services.base_service import ServiceError, AuthenticationError
+    from jobs.sync_usage import upsert_usage_record
+    from app import db
+    from datetime import date, datetime, timezone
+
+    try:
+        plaintext_key = decrypt_api_key(account.api_key)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 500
+
+    try:
+        client = get_service_client(service_name, plaintext_key)
+    except (ValueError, AuthenticationError) as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    month_start = date.today().replace(day=1).isoformat()
+    try:
+        usage = client.get_usage(start_date=month_start)
+    except AuthenticationError as exc:
+        return jsonify({"error": str(exc), "code": "AUTH_FAILED"}), 400
+    except ServiceError as exc:
+        return jsonify({"error": str(exc), "code": "SYNC_FAILED"}), 502
+
+    records_written = 0
+    for day_data in usage.get("daily", []):
+        ts = datetime.fromisoformat(day_data["date"]).replace(
+            hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc
+        )
+        upsert_usage_record(
+            db=db,
+            account_id=account.id,
+            service_id=account.service_id,
+            timestamp=ts,
+            tokens_used=day_data.get("tokens", 0),
+            cost=day_data.get("cost", 0),
+            request_type="daily_sync",
+            source="api",
+            extra_data=day_data.get("metadata", {"line_items": day_data.get("line_items", [])}),
+        )
+        records_written += 1
+
+    account.last_sync = datetime.now(timezone.utc)
+    db.session.commit()
+
+    return jsonify({
+        "message": f"Sync complete. {records_written} day(s) updated.",
+        "records_written": records_written,
+        "total_cost": usage.get("total_cost", 0),
+        "total_tokens": usage.get("total_tokens", 0),
+        "last_sync": account.last_sync.isoformat(),
+    }), 200
+
+
 @accounts_bp.route("/<int:account_id>/test", methods=["POST"])
 @jwt_required()
 def test_account(account_id):
