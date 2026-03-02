@@ -1,479 +1,365 @@
 """
-Diagnostic Logging System for AI Cost Tracker
+Diagnostic logging utilities for AI Cost Tracker.
 
-Provides comprehensive, structured logging for all provider API interactions.
-Designed to help diagnose sync failures, track performance, and monitor rate limits.
+Provides structured logging helpers for debugging provider integrations,
+API calls, sync operations, and error conditions.
 
 Usage:
     from utils.diagnostic_logger import get_diagnostic_logger, log_api_call
-
+    
     logger = get_diagnostic_logger(__name__)
     
-    with log_api_call(logger, "anthropic", "usage_report", account_id=123):
-        response = call_anthropic_api()
-        
-Key Features:
-- Structured JSON logging for easy parsing
-- Request/response correlation IDs
-- Performance timing
-- Error context preservation
-- Rate limit tracking
-- Provider-specific metadata
+    with log_api_call(logger, "openai", "usage_fetch"):
+        # Your API call here
+        pass
 """
 
 import json
 import logging
 import time
-import traceback
 from contextlib import contextmanager
 from datetime import datetime
-from functools import wraps
 from typing import Any, Dict, Optional
-from uuid import uuid4
 
-# Configure structured logging format
-DIAGNOSTIC_LOG_FORMAT = (
-    '%(asctime)s - %(name)s - %(levelname)s - '
-    '[%(correlation_id)s] - %(message)s - %(context)s'
+# Configure root logger for structured output
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
 )
 
 
-class StructuredFormatter(logging.Formatter):
-    """Custom formatter that outputs structured JSON logs."""
-    
-    def format(self, record):
-        log_data = {
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
-            'level': record.levelname,
-            'logger': record.name,
-            'message': record.getMessage(),
-            'correlation_id': getattr(record, 'correlation_id', None),
-            'context': getattr(record, 'context', {}),
-        }
-        
-        if record.exc_info:
-            log_data['exception'] = {
-                'type': record.exc_info[0].__name__,
-                'message': str(record.exc_info[1]),
-                'traceback': traceback.format_exception(*record.exc_info),
-            }
-        
-        return json.dumps(log_data)
-
-
-class DiagnosticLogger:
-    """Enhanced logger with structured logging and context tracking."""
-    
-    def __init__(self, name: str):
-        self.logger = logging.getLogger(f"diagnostic.{name}")
-        self.correlation_id = None
-        
-    def _log(self, level: int, msg: str, context: Optional[Dict] = None, exc_info=None):
-        """Internal logging method with context injection."""
-        extra = {
-            'correlation_id': self.correlation_id or 'no-correlation-id',
-            'context': context or {},
-        }
-        self.logger.log(level, msg, extra=extra, exc_info=exc_info)
-    
-    def debug(self, msg: str, **context):
-        self._log(logging.DEBUG, msg, context)
-    
-    def info(self, msg: str, **context):
-        self._log(logging.INFO, msg, context)
-    
-    def warning(self, msg: str, **context):
-        self._log(logging.WARNING, msg, context)
-    
-    def error(self, msg: str, exc_info=None, **context):
-        self._log(logging.ERROR, msg, context, exc_info=exc_info)
-    
-    def critical(self, msg: str, exc_info=None, **context):
-        self._log(logging.CRITICAL, msg, context, exc_info=exc_info)
-
-
-def get_diagnostic_logger(name: str) -> DiagnosticLogger:
-    """Get a diagnostic logger instance.
+def get_diagnostic_logger(name: str) -> logging.Logger:
+    """Get a logger instance with diagnostic capabilities.
     
     Args:
-        name: Logger name (usually __name__ of the module)
+        name: Logger name (typically __name__ from calling module)
         
     Returns:
-        DiagnosticLogger instance with structured logging
+        Configured Logger instance
     """
-    logger = DiagnosticLogger(name)
+    logger = logging.getLogger(name)
     
-    # Configure structured formatter if not already configured
-    if not logger.logger.handlers:
-        handler = logging.StreamHandler()
-        handler.setFormatter(StructuredFormatter())
-        logger.logger.addHandler(handler)
-        logger.logger.setLevel(logging.DEBUG)
+    # Add custom methods for structured logging
+    if not hasattr(logger, '_diagnostic_enhanced'):
+        _enhance_logger(logger)
+        logger._diagnostic_enhanced = True
     
     return logger
 
 
+def _enhance_logger(logger: logging.Logger):
+    """Add custom logging methods to a logger instance."""
+    
+    def debug(msg: str, **kwargs):
+        """Log debug message with optional structured data."""
+        if logger.isEnabledFor(logging.DEBUG):
+            extra_data = _format_extra_data(kwargs)
+            logger._log(logging.DEBUG, f"{msg}{extra_data}", args=())
+    
+    def info(msg: str, **kwargs):
+        """Log info message with optional structured data."""
+        if logger.isEnabledFor(logging.INFO):
+            extra_data = _format_extra_data(kwargs)
+            logger._log(logging.INFO, f"{msg}{extra_data}", args=())
+    
+    def warning(msg: str, **kwargs):
+        """Log warning message with optional structured data."""
+        if logger.isEnabledFor(logging.WARNING):
+            extra_data = _format_extra_data(kwargs)
+            logger._log(logging.WARNING, f"{msg}{extra_data}", args=())
+    
+    def error(msg: str, exc_info: bool = False, **kwargs):
+        """Log error message with optional structured data."""
+        if logger.isEnabledFor(logging.ERROR):
+            extra_data = _format_extra_data(kwargs)
+            logger._log(logging.ERROR, f"{msg}{extra_data}", args=(), exc_info=exc_info)
+    
+    # Replace standard methods
+    logger.debug = debug
+    logger.info = info
+    logger.warning = warning
+    logger.error = error
+
+
+def _format_extra_data(data: Dict[str, Any]) -> str:
+    """Format extra data as JSON string for log output."""
+    if not data:
+        return ""
+    
+    # Filter out None values and convert to JSON
+    filtered = {k: v for k, v in data.items() if v is not None}
+    if not filtered:
+        return ""
+    
+    try:
+        json_str = json.dumps(filtered, default=str, separators=(',', ':'))
+        return f" | {json_str}"
+    except Exception:
+        return f" | {filtered}"
+
+
 @contextmanager
 def log_api_call(
-    logger: DiagnosticLogger,
+    logger: logging.Logger,
     provider: str,
-    endpoint: str,
-    **metadata
+    operation: str,
+    **context
 ):
-    """Context manager for logging API calls with automatic timing and error handling.
+    """Context manager for logging API calls with timing.
     
     Usage:
-        with log_api_call(logger, "anthropic", "usage_report", account_id=123):
-            response = call_api()
-            
+        with log_api_call(logger, "openai", "fetch_usage", account_id=123):
+            response = api.get_usage()
+    
     Args:
-        logger: DiagnosticLogger instance
+        logger: Logger instance
         provider: Provider name (anthropic, openai, google, etc.)
-        endpoint: API endpoint or operation name
-        **metadata: Additional context (account_id, model, etc.)
+        operation: Operation being performed
+        **context: Additional context to log
     """
-    correlation_id = str(uuid4())
-    logger.correlation_id = correlation_id
     start_time = time.time()
     
-    context = {
-        'provider': provider,
-        'endpoint': endpoint,
-        'correlation_id': correlation_id,
-        **metadata
-    }
-    
     logger.info(
-        f"API call started: {provider}.{endpoint}",
+        f"API call started: {provider}.{operation}",
+        provider=provider,
+        operation=operation,
         **context
     )
     
     try:
-        yield correlation_id
+        yield
         elapsed = time.time() - start_time
         logger.info(
-            f"API call succeeded: {provider}.{endpoint}",
-            elapsed_seconds=elapsed,
+            f"API call succeeded: {provider}.{operation}",
+            provider=provider,
+            operation=operation,
+            elapsed_seconds=round(elapsed, 3),
+            success=True,
             **context
         )
     except Exception as exc:
         elapsed = time.time() - start_time
         logger.error(
-            f"API call failed: {provider}.{endpoint}",
+            f"API call failed: {provider}.{operation}",
             exc_info=True,
+            provider=provider,
+            operation=operation,
+            elapsed_seconds=round(elapsed, 3),
+            success=False,
             error_type=type(exc).__name__,
             error_message=str(exc),
-            elapsed_seconds=elapsed,
             **context
         )
         raise
 
 
 def log_provider_request(
-    logger: DiagnosticLogger,
+    logger: logging.Logger,
     provider: str,
     method: str,
     url: str,
-    headers: Optional[Dict] = None,
-    params: Optional[Dict] = None,
-    json_body: Optional[Dict] = None,
+    headers: Optional[Dict[str, str]] = None,
+    params: Optional[Dict[str, Any]] = None,
+    json_body: Optional[Dict[str, Any]] = None,
 ):
-    """Log outgoing API request details.
+    """Log outgoing provider API request details.
     
     Args:
-        logger: DiagnosticLogger instance
+        logger: Logger instance
         provider: Provider name
-        method: HTTP method
+        method: HTTP method (GET, POST, etc.)
         url: Request URL
-        headers: Request headers (API keys will be redacted)
+        headers: Request headers (sensitive keys will be masked)
         params: Query parameters
-        json_body: JSON request body
+        json_body: Request body
     """
-    # Redact sensitive headers
-    safe_headers = {}
-    if headers:
-        for key, value in headers.items():
-            if key.lower() in ('authorization', 'x-api-key', 'api-key'):
-                safe_headers[key] = f"{value[:15]}..." if len(value) > 15 else "***"
-            else:
-                safe_headers[key] = value
+    # Mask sensitive headers
+    safe_headers = _mask_sensitive_headers(headers or {})
     
     logger.debug(
-        f"HTTP Request: {method} {url}",
+        f"Provider request: {method} {url}",
         provider=provider,
         method=method,
         url=url,
         headers=safe_headers,
         params=params,
-        json_body=json_body,
+        body_size=len(json.dumps(json_body)) if json_body else 0,
     )
 
 
 def log_provider_response(
-    logger: DiagnosticLogger,
+    logger: logging.Logger,
     provider: str,
     status_code: int,
     response_time_ms: float,
-    headers: Optional[Dict] = None,
-    body: Optional[Dict] = None,
+    headers: Optional[Dict[str, str]] = None,
+    body: Optional[Any] = None,
     error: Optional[str] = None,
 ):
-    """Log API response details.
+    """Log provider API response details.
     
     Args:
-        logger: DiagnosticLogger instance
+        logger: Logger instance
         provider: Provider name
         status_code: HTTP status code
         response_time_ms: Response time in milliseconds
         headers: Response headers
-        body: Response body (truncated if large)
+        body: Response body (will be truncated if large)
         error: Error message if request failed
     """
-    level = logging.INFO if 200 <= status_code < 300 else logging.ERROR
+    log_level = logging.DEBUG if status_code < 400 else logging.ERROR
     
-    # Extract rate limit headers if present
-    rate_limits = {}
+    # Extract useful headers
+    useful_headers = {}
     if headers:
-        rate_limit_keys = [
-            'x-ratelimit-limit-requests',
-            'x-ratelimit-limit-tokens',
-            'x-ratelimit-remaining-requests',
-            'x-ratelimit-remaining-tokens',
-            'x-ratelimit-reset-requests',
-            'x-ratelimit-reset-tokens',
-            'retry-after',
-        ]
-        for key in rate_limit_keys:
+        for key in ['x-ratelimit-limit-requests', 'x-ratelimit-remaining-requests',
+                    'x-ratelimit-limit-tokens', 'x-ratelimit-remaining-tokens',
+                    'retry-after', 'content-type']:
             if key in headers:
-                rate_limits[key] = headers[key]
+                useful_headers[key] = headers[key]
     
-    # Truncate body if too large
-    truncated_body = body
-    if body and isinstance(body, dict):
-        body_str = json.dumps(body)
-        if len(body_str) > 5000:
-            truncated_body = f"{body_str[:5000]}... (truncated)"
-    
-    context = {
-        'provider': provider,
-        'status_code': status_code,
-        'response_time_ms': response_time_ms,
-        'rate_limits': rate_limits,
-        'body': truncated_body,
+    log_data = {
+        "provider": provider,
+        "status_code": status_code,
+        "response_time_ms": round(response_time_ms, 2),
+        "headers": useful_headers,
     }
     
     if error:
-        context['error'] = error
+        log_data["error"] = error[:500]  # Truncate long errors
     
-    logger._log(
-        level,
-        f"HTTP Response: {status_code} from {provider}",
-        context
-    )
+    if body and isinstance(body, dict):
+        # Log relevant response fields without full body
+        if 'usage' in body:
+            log_data["usage"] = body['usage']
+        if 'data' in body and isinstance(body['data'], list):
+            log_data["data_count"] = len(body['data'])
+    
+    if log_level == logging.ERROR:
+        logger.error(
+            f"Provider response: {status_code}",
+            **log_data
+        )
+    else:
+        logger.debug(
+            f"Provider response: {status_code}",
+            **log_data
+        )
 
 
 def log_sync_attempt(
-    logger: DiagnosticLogger,
+    logger: logging.Logger,
     provider: str,
     account_id: int,
     sync_type: str,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    **context
 ):
     """Log the start of a sync operation.
     
     Args:
-        logger: DiagnosticLogger instance
+        logger: Logger instance
         provider: Provider name
         account_id: Account ID being synced
         sync_type: Type of sync (usage, cost, rate_limits)
-        start_date: Start date for sync range
-        end_date: End date for sync range
+        **context: Additional context (dates, filters, etc.)
     """
     logger.info(
-        f"Starting sync: {provider} account {account_id}",
+        f"Sync attempt started: {provider}/{sync_type}",
         provider=provider,
         account_id=account_id,
         sync_type=sync_type,
-        start_date=start_date,
-        end_date=end_date,
+        timestamp=datetime.utcnow().isoformat(),
+        **context
     )
 
 
 def log_sync_result(
-    logger: DiagnosticLogger,
+    logger: logging.Logger,
     provider: str,
     account_id: int,
     success: bool,
     records_created: int = 0,
+    records_updated: int = 0,
+    elapsed_seconds: float = 0,
     error: Optional[str] = None,
-    elapsed_seconds: Optional[float] = None,
+    **context
 ):
     """Log the result of a sync operation.
     
     Args:
-        logger: DiagnosticLogger instance
+        logger: Logger instance
         provider: Provider name
-        account_id: Account ID that was synced
+        account_id: Account ID synced
         success: Whether sync succeeded
-        records_created: Number of usage records created
-        error: Error message if sync failed
-        elapsed_seconds: Total sync duration
+        records_created: Number of records created
+        records_updated: Number of records updated
+        elapsed_seconds: Time taken
+        error: Error message if failed
+        **context: Additional context
     """
-    level = logging.INFO if success else logging.ERROR
+    log_level = logging.INFO if success else logging.ERROR
     
-    logger._log(
-        level,
-        f"Sync {'completed' if success else 'failed'}: {provider} account {account_id}",
-        {
-            'provider': provider,
-            'account_id': account_id,
-            'success': success,
-            'records_created': records_created,
-            'error': error,
-            'elapsed_seconds': elapsed_seconds,
-        }
-    )
+    log_data = {
+        "provider": provider,
+        "account_id": account_id,
+        "success": success,
+        "records_created": records_created,
+        "records_updated": records_updated,
+        "elapsed_seconds": round(elapsed_seconds, 3),
+        "timestamp": datetime.utcnow().isoformat(),
+        **context
+    }
+    
+    if error:
+        log_data["error"] = error
+    
+    msg = f"Sync {'succeeded' if success else 'failed'}: {provider}"
+    
+    if log_level == logging.ERROR:
+        logger.error(msg, **log_data)
+    else:
+        logger.info(msg, **log_data)
 
 
-def log_rate_limit_status(
-    logger: DiagnosticLogger,
-    provider: str,
-    limit_type: str,
-    limit_value: Any,
-    current_usage: Any,
-    remaining: Any,
-    reset_time: Optional[str] = None,
-):
-    """Log rate limit status for monitoring.
+def _mask_sensitive_headers(headers: Dict[str, str]) -> Dict[str, str]:
+    """Mask sensitive header values for logging.
     
     Args:
-        logger: DiagnosticLogger instance
-        provider: Provider name
-        limit_type: Type of limit (RPM, TPM, RPD, etc.)
-        limit_value: Maximum limit value
-        current_usage: Current usage
-        remaining: Remaining quota
-        reset_time: When the limit resets
+        headers: Original headers dict
+        
+    Returns:
+        Headers dict with sensitive values masked
     """
-    usage_percent = (current_usage / limit_value * 100) if limit_value > 0 else 0
-    level = logging.WARNING if usage_percent > 80 else logging.INFO
+    sensitive_keys = {
+        'authorization', 'x-api-key', 'api-key', 
+        'anthropic-api-key', 'openai-api-key',
+        'google-api-key', 'bearer'
+    }
     
-    logger._log(
-        level,
-        f"Rate limit status: {provider} {limit_type}",
-        {
-            'provider': provider,
-            'limit_type': limit_type,
-            'limit_value': limit_value,
-            'current_usage': current_usage,
-            'remaining': remaining,
-            'usage_percent': round(usage_percent, 1),
-            'reset_time': reset_time,
-        }
-    )
+    masked = {}
+    for key, value in headers.items():
+        if key.lower() in sensitive_keys:
+            # Show first/last 4 chars
+            if len(value) > 8:
+                masked[key] = f"{value[:4]}...{value[-4:]}"
+            else:
+                masked[key] = "***"
+        else:
+            masked[key] = value
+    
+    return masked
 
 
-def log_data_validation(
-    logger: DiagnosticLogger,
-    provider: str,
-    validation_type: str,
-    passed: bool,
-    details: Optional[Dict] = None,
-):
-    """Log data validation results.
+def set_log_level(level: str):
+    """Set global log level for diagnostic logging.
     
     Args:
-        logger: DiagnosticLogger instance
-        provider: Provider name
-        validation_type: What was validated
-        passed: Whether validation passed
-        details: Additional validation details
+        level: Log level (DEBUG, INFO, WARNING, ERROR)
     """
-    level = logging.INFO if passed else logging.WARNING
+    numeric_level = getattr(logging, level.upper(), logging.INFO)
+    logging.getLogger().setLevel(numeric_level)
     
-    logger._log(
-        level,
-        f"Validation {'passed' if passed else 'failed'}: {provider} {validation_type}",
-        {
-            'provider': provider,
-            'validation_type': validation_type,
-            'passed': passed,
-            'details': details or {},
-        }
-    )
-
-
-def diagnostic_wrapper(provider: str, operation: str):
-    """Decorator for automatically logging function calls.
-    
-    Usage:
-        @diagnostic_wrapper("anthropic", "fetch_usage")
-        def fetch_anthropic_usage():
-            ...
-    
-    Args:
-        provider: Provider name
-        operation: Operation name
-    """
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            logger = get_diagnostic_logger(func.__module__)
-            
-            with log_api_call(logger, provider, operation):
-                return func(*args, **kwargs)
-        
-        return wrapper
-    return decorator
-
-
-# Example usage and testing
-if __name__ == "__main__":
-    # Configure root logger
-    logging.basicConfig(level=logging.DEBUG)
-    
-    # Test diagnostic logging
-    logger = get_diagnostic_logger(__name__)
-    
-    # Simulate an API call
-    with log_api_call(logger, "anthropic", "usage_report", account_id=123):
-        log_provider_request(
-            logger,
-            "anthropic",
-            "GET",
-            "https://api.anthropic.com/v1/organizations/usage_report/messages",
-            headers={"x-api-key": "sk-ant-admin-secret123"},
-            params={"starting_at": "2026-03-01", "ending_at": "2026-03-02"},
-        )
-        
-        time.sleep(0.1)  # Simulate API call
-        
-        log_provider_response(
-            logger,
-            "anthropic",
-            200,
-            120.5,
-            headers={
-                "x-ratelimit-limit-requests": "60",
-                "x-ratelimit-remaining-requests": "45",
-            },
-            body={"data": [{"tokens": 1000}]},
-        )
-    
-    # Test rate limit logging
-    log_rate_limit_status(
-        logger,
-        "openai",
-        "TPM",
-        150000,
-        120000,
-        30000,
-        reset_time="60s"
-    )
-    
-    # Test error logging
-    try:
-        raise ValueError("Test error")
-    except ValueError:
-        logger.error("Caught test error", exc_info=True, test_context="example")
+    # Also set for all provider loggers
+    for name in ['anthropic_service', 'openai_service', 'google_service']:
+        logging.getLogger(f'services.{name}').setLevel(numeric_level)
