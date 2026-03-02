@@ -5,7 +5,9 @@
 - [x] Runtime bugs fixed — app verified working end-to-end
 - [x] npm vulnerabilities resolved — 0 vulnerabilities (2026-02-25)
 - [x] Local dev environment cleaned up — processes stopped, venv + node_modules removed (2026-02-25)
-- [ ] Phase 2 — Anthropic, Groq, Perplexity service integrations (planning with Perplexity)
+- [x] Phase 2 — Anthropic service — Admin API with diagnostic logging (2026-03-02)
+- [x] Phase 2 — Groq service — per-request tracking + rate limits + timing (2026-03-02)
+- [ ] Phase 2 — Perplexity service — per-request logging + cost calc **← NEXT**
 - [ ] Phase 2 — Wire new services into sync job
 - [ ] Phase 2 — Add local LLM services (Ollama etc.) as manual-tracking entries
 - [ ] Phase 3 — Email/webhook alerts, CSV export
@@ -54,14 +56,14 @@
 - Base service class handles retry/backoff; all service clients inherit from it
 
 ### Service integration status
-| Service        | Key storage | Usage sync | Notes                            |
-|---------------|-------------|------------|----------------------------------|
-| ChatGPT        | ✅ encrypted | ✅ live    | OpenAI billing API               |
-| Claude         | ✅ encrypted | ❌ Phase 2 | No Anthropic billing endpoint    |
-| Groq           | ✅ encrypted | ❌ Phase 2 | Track per-request via response   |
-| Perplexity     | ✅ encrypted | ❌ Phase 2 | Track per-request via response   |
-| GitHub Copilot | ✅ encrypted | ❌ Phase 2 | Manual / subscription tracking   |
-| Local LLMs     | ❌ not seeded | ❌ Phase 2 | Ollama etc. — to be added        |
+| Service        | Key storage | Usage sync | Notes                                           |
+|---------------|-------------|------------|-------------------------------------------------|
+| ChatGPT        | ✅ encrypted | ✅ live    | OpenAI billing API                              |
+| Claude         | ✅ encrypted | ✅ live    | Anthropic Admin API (`sk-ant-admin-`)           |
+| Groq           | ✅ encrypted | ✅ live    | Per-request via `call_with_tracking()` — **DONE 2026-03-02** |
+| Perplexity     | ✅ encrypted | ❌ Phase 2 | Per-request logging + cost calc — **NEXT**      |
+| GitHub Copilot | ✅ encrypted | ❌ Phase 2 | Manual / subscription tracking                  |
+| Local LLMs     | ❌ not seeded | ❌ Phase 2 | Ollama etc. — to be added                      |
 
 ### How to restart the app (local dev)
 ```bash
