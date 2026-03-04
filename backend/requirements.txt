@@ -7,7 +7,7 @@ flask-jwt-extended==4.6.0
 flask-cors==6.0.0
 sqlalchemy==2.0.35
 cryptography==46.0.5
-openai==1.51.0
+openai==2.24.0
 python-dotenv==1.0.1
 bcrypt==4.2.0
 marshmallow==3.26.2
