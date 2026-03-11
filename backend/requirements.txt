@@ -5,7 +5,7 @@ psycopg2-binary==2.9.11
 flask-migrate==4.1.0
 flask-jwt-extended==4.7.1
 flask-cors==6.0.0
-sqlalchemy==2.0.35
+sqlalchemy==2.0.48
 cryptography==46.0.5
 openai==2.26.0
 python-dotenv==1.0.1
