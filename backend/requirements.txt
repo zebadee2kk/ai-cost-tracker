@@ -10,7 +10,7 @@ cryptography==46.0.5
 openai==2.29.0
 python-dotenv==1.0.1
 bcrypt==5.0.0
-marshmallow==3.26.2
+marshmallow==4.2.2
 requests==2.32.5
 apscheduler==3.11.2
 numpy==2.1.3
