@@ -22,12 +22,12 @@ def _seed_service(db):
 
 
 def test_create_account(client, db):
-    token = _register_and_token(client, "create@example.com")
+    auth_jwt = _register_and_token(client, "create@example.com")
     svc_id = _seed_service(db)
     res = client.post(
         "/api/accounts",
         json={"service_id": svc_id, "account_name": "My Account", "api_key": "sk-test"},
-        headers={"Authorization": f"Bearer {token}"},
+        headers={"Authorization": f"Bearer {auth_jwt}"},
     )
     assert res.status_code == 201
     data = res.get_json()["account"]
@@ -36,20 +36,20 @@ def test_create_account(client, db):
 
 
 def test_list_accounts(client, db):
-    token = _register_and_token(client, "list@example.com")
+    auth_jwt = _register_and_token(client, "list@example.com")
     svc_id = _seed_service(db)
-    client.post("/api/accounts", json={"service_id": svc_id, "account_name": "A1"}, headers={"Authorization": f"Bearer {token}"})
-    res = client.get("/api/accounts", headers={"Authorization": f"Bearer {token}"})
+    client.post("/api/accounts", json={"service_id": svc_id, "account_name": "A1"}, headers={"Authorization": f"Bearer {auth_jwt}"})
+    res = client.get("/api/accounts", headers={"Authorization": f"Bearer {auth_jwt}"})
     assert res.status_code == 200
     assert len(res.get_json()["accounts"]) >= 1
 
 
 def test_delete_account(client, db):
-    token = _register_and_token(client, "del@example.com")
+    auth_jwt = _register_and_token(client, "del@example.com")
     svc_id = _seed_service(db)
-    create_res = client.post("/api/accounts", json={"service_id": svc_id, "account_name": "ToDelete"}, headers={"Authorization": f"Bearer {token}"})
+    create_res = client.post("/api/accounts", json={"service_id": svc_id, "account_name": "ToDelete"}, headers={"Authorization": f"Bearer {auth_jwt}"})
     acct_id = create_res.get_json()["account"]["id"]
-    del_res = client.delete(f"/api/accounts/{acct_id}", headers={"Authorization": f"Bearer {token}"})
+    del_res = client.delete(f"/api/accounts/{acct_id}", headers={"Authorization": f"Bearer {auth_jwt}"})
     assert del_res.status_code == 200
 
 

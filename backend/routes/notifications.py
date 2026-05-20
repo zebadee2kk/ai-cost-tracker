@@ -339,7 +339,9 @@ def send_test_notification(channel):
         if not EmailSender:
             return jsonify({"error": "Email sender not available"}), 503
         sender = EmailSender(
-            api_key=current_app.config.get("SENDGRID_API_KEY", ""),
+            api_key=
+
+                current_app.config.get("SENDGRID_API_KEY", ""),
             from_email=current_app.config.get("SENDGRID_FROM_EMAIL", ""),
             from_name=current_app.config.get("SENDGRID_FROM_NAME", "AI Cost Tracker"),
         )

@@ -202,9 +202,9 @@ def run_tests(provider_names: list[str], verbose: bool = False) -> dict:
     results = {}
     for name in provider_names:
         cfg = PROVIDERS[name]
-        api_key = os.environ.get(cfg["env_var"], "").strip()
+        provider_key = os.environ.get(cfg["env_var"], "").strip()
 
-        if not api_key:
+        if not provider_key:
             results[name] = ("skip", f"${cfg['env_var']} not set")
             continue
 

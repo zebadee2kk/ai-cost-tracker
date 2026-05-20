@@ -33,7 +33,7 @@ def _register_and_login(client):
         json={"email": email, "password": "Password1!"},
     )
     assert res.status_code == 201
-    token = res.get_json()["token"]
+    auth_jwt = res.get_json()["token"]
     user_id = res.get_json()["user"]["id"]
     return token, user_id
 
@@ -125,7 +125,7 @@ def setup(client, app):
 @pytest.fixture()
 def headers(setup):
     token, _, _ = setup
-    return {"Authorization": f"Bearer {token}"}
+    return {"Authorization": f"Bearer {auth_jwt}"}
 
 
 @pytest.fixture()
@@ -153,7 +153,7 @@ class TestTrendsEndpoint:
 
     def test_trends_default_period_cost(self, client, seeded_setup):
         token, account_id, _ = seeded_setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(f"/api/analytics/trends/{account_id}", headers=headers)
         assert res.status_code == 200
         data = res.get_json()
@@ -166,7 +166,7 @@ class TestTrendsEndpoint:
 
     def test_trends_7d_period(self, client, seeded_setup):
         token, account_id, _ = seeded_setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(
             f"/api/analytics/trends/{account_id}",
             query_string={"period": "7d"},
@@ -177,7 +177,7 @@ class TestTrendsEndpoint:
 
     def test_trends_90d_period(self, client, seeded_setup):
         token, account_id, _ = seeded_setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(
             f"/api/analytics/trends/{account_id}",
             query_string={"period": "90d"},
@@ -188,7 +188,7 @@ class TestTrendsEndpoint:
 
     def test_trends_tokens_metric(self, client, seeded_setup):
         token, account_id, _ = seeded_setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(
             f"/api/analytics/trends/{account_id}",
             query_string={"metric": "tokens"},
@@ -199,7 +199,7 @@ class TestTrendsEndpoint:
 
     def test_trends_invalid_period(self, client, seeded_setup):
         token, account_id, _ = seeded_setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(
             f"/api/analytics/trends/{account_id}",
             query_string={"period": "3d"},
@@ -209,7 +209,7 @@ class TestTrendsEndpoint:
 
     def test_trends_invalid_metric(self, client, seeded_setup):
         token, account_id, _ = seeded_setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(
             f"/api/analytics/trends/{account_id}",
             query_string={"metric": "revenue"},
@@ -223,7 +223,7 @@ class TestTrendsEndpoint:
 
     def test_trends_no_data_returns_empty(self, client, setup):
         token, account_id, _ = setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(f"/api/analytics/trends/{account_id}", headers=headers)
         assert res.status_code == 200
         data = res.get_json()
@@ -232,7 +232,7 @@ class TestTrendsEndpoint:
 
     def test_trends_moving_avg_30d_only_for_30d_plus(self, client, seeded_setup):
         token, account_id, _ = seeded_setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         # 7d period: moving_avg_30d should be empty
         res = client.get(
             f"/api/analytics/trends/{account_id}",
@@ -244,7 +244,7 @@ class TestTrendsEndpoint:
 
     def test_trends_growth_rate_present(self, client, seeded_setup):
         token, account_id, _ = seeded_setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(f"/api/analytics/trends/{account_id}", headers=headers)
         assert res.status_code == 200
         # growth_rate_pct can be None for <2 points, or a float
@@ -264,7 +264,7 @@ class TestForecastEndpoint:
 
     def test_forecast_default_30_days(self, client, seeded_setup):
         token, account_id, _ = seeded_setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(f"/api/analytics/forecast/{account_id}", headers=headers)
         assert res.status_code == 200
         data = res.get_json()
@@ -275,7 +275,7 @@ class TestForecastEndpoint:
 
     def test_forecast_60_day_horizon(self, client, seeded_setup):
         token, account_id, _ = seeded_setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(
             f"/api/analytics/forecast/{account_id}",
             query_string={"horizon": 60},
@@ -288,7 +288,7 @@ class TestForecastEndpoint:
 
     def test_forecast_90_day_horizon(self, client, seeded_setup):
         token, account_id, _ = seeded_setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(
             f"/api/analytics/forecast/{account_id}",
             query_string={"horizon": 90},
@@ -299,7 +299,7 @@ class TestForecastEndpoint:
 
     def test_forecast_invalid_horizon(self, client, seeded_setup):
         token, account_id, _ = seeded_setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(
             f"/api/analytics/forecast/{account_id}",
             query_string={"horizon": 45},
@@ -309,7 +309,7 @@ class TestForecastEndpoint:
 
     def test_forecast_non_integer_horizon(self, client, seeded_setup):
         token, account_id, _ = seeded_setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(
             f"/api/analytics/forecast/{account_id}",
             query_string={"horizon": "abc"},
@@ -319,7 +319,7 @@ class TestForecastEndpoint:
 
     def test_forecast_no_data(self, client, setup):
         token, account_id, _ = setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(f"/api/analytics/forecast/{account_id}", headers=headers)
         assert res.status_code == 200
         data = res.get_json()
@@ -338,7 +338,7 @@ class TestAnomalyEndpoints:
 
     def test_list_anomalies_empty(self, client, setup):
         token, account_id, _ = setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(f"/api/analytics/anomalies/{account_id}", headers=headers)
         assert res.status_code == 200
         data = res.get_json()
@@ -348,7 +348,7 @@ class TestAnomalyEndpoints:
     def test_list_anomalies_returns_records(self, client, app, setup):
         token, account_id, _ = setup
         _make_anomaly(app, account_id, "2026-03-04")
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(f"/api/analytics/anomalies/{account_id}", headers=headers)
         assert res.status_code == 200
         data = res.get_json()
@@ -358,7 +358,7 @@ class TestAnomalyEndpoints:
         token, account_id, _ = setup
         _make_anomaly(app, account_id, "2026-03-07", acknowledged=False)
         _make_anomaly(app, account_id, "2026-03-08", acknowledged=True)
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
 
         res_unack = client.get(
             f"/api/analytics/anomalies/{account_id}",
@@ -371,7 +371,7 @@ class TestAnomalyEndpoints:
 
     def test_trigger_detection_no_data(self, client, setup):
         token, account_id, _ = setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.post(
             f"/api/analytics/anomalies/{account_id}/detect",
             json={"start_date": "2026-01-01", "end_date": "2026-01-31"},
@@ -383,7 +383,7 @@ class TestAnomalyEndpoints:
     def test_acknowledge_anomaly(self, client, app, setup):
         token, account_id, _ = setup
         anomaly_id = _make_anomaly(app, account_id, "2026-03-09")
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
 
         res = client.post(
             f"/api/analytics/anomalies/{anomaly_id}/acknowledge",
@@ -408,7 +408,7 @@ class TestConfigEndpoints:
 
     def test_get_config_defaults(self, client, setup):
         token, account_id, _ = setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.get(f"/api/analytics/config/{account_id}", headers=headers)
         assert res.status_code == 200
         data = res.get_json()
@@ -418,7 +418,7 @@ class TestConfigEndpoints:
 
     def test_put_config_creates_record(self, client, setup):
         token, account_id, _ = setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.put(
             f"/api/analytics/config/{account_id}",
             json={"sensitivity": 1.5, "baseline_days": 14, "is_enabled": True},
@@ -431,7 +431,7 @@ class TestConfigEndpoints:
 
     def test_put_config_invalid_sensitivity(self, client, setup):
         token, account_id, _ = setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.put(
             f"/api/analytics/config/{account_id}",
             json={"sensitivity": 3.0},
@@ -441,7 +441,7 @@ class TestConfigEndpoints:
 
     def test_put_config_invalid_baseline_days(self, client, setup):
         token, account_id, _ = setup
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {auth_jwt}"}
         res = client.put(
             f"/api/analytics/config/{account_id}",
             json={"baseline_days": 5},

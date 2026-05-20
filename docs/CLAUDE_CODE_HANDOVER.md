@@ -483,7 +483,7 @@ interface UsageRecord {
 # tests/test_enhanced_usage_records.py
 def test_anthropic_creates_enhanced_record():
     """Test Anthropic service populates new fields."""
-    service = AnthropicService(api_key="sk-ant-admin-test")
+    service = AnthropicService(api_key="setme")
     usage = service.get_usage(start_date="2026-03-01", end_date="2026-03-01")
     
     # Verify new fields populated
@@ -495,7 +495,7 @@ def test_anthropic_creates_enhanced_record():
 
 def test_openai_rate_limits_tracked():
     """Test OpenAI service tracks rate limits."""
-    service = OpenAIService(api_key="sk-test")
+    service = OpenAIService(api_key="setme")
     # ... make API call ...
     
     record = UsageRecord.query.first()

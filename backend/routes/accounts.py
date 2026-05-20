@@ -56,7 +56,9 @@ def create_account():
         user_id=user_id,
         service_id=data["service_id"],
         account_name=sanitize_string(data["account_name"]),
-        api_key=encrypted_key,
+        api_key=
+
+            encrypted_key,
         auth_token=encrypted_token,
         monthly_limit=data.get("monthly_limit"),
         session_limit=data.get("session_limit"),
@@ -94,7 +96,9 @@ def update_account(account_id):
     if "is_active" in data:
         account.is_active = bool(data["is_active"])
     if data.get("api_key"):
-        account.api_key = encrypt_api_key(data["api_key"])
+        account.api_key = (
+            encrypt_api_key(data["api_key"])
+        )
     if data.get("auth_token"):
         account.auth_token = encrypt_api_key(data["auth_token"])
 

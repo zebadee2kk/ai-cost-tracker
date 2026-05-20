@@ -100,7 +100,7 @@ def auth_headers(user_token):
 @pytest.fixture()
 def account_ids(app, client):
     """Returns (account_id, service_id) after registering a user."""
-    token = _register(client)
+    auth_jwt = _register(client)
     from flask_jwt_extended import decode_token
 
     with app.app_context():

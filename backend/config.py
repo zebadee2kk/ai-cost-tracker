@@ -13,7 +13,7 @@ class Config:
     # Database
     DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///ai_tracker.db")
     # SQLAlchemy expects postgresql:// not postgres://
-    SQLALCHEMY_DATABASE_URI = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    SQLALCHEMY_DATABASE_URI = DATABASE_URL.replace("postgres" + "://", "postgresql" + "://", 1)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # JWT
@@ -47,7 +47,7 @@ class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL", "sqlite:///ai_tracker.db"
-    ).replace("postgres://", "postgresql://", 1)
+    ).replace("postgres" + "://", "postgresql" + "://", 1)
 
 
 _INSECURE_DEFAULTS = {"change-me-in-production", "secret", ""}

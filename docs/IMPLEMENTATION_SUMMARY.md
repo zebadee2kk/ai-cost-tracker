@@ -157,7 +157,7 @@ psql $DATABASE_URL -c "\d usage_records"
 ```python
 # Unit test example
 def test_openai_enhanced_tracking():
-    service = OpenAIService(api_key=os.getenv("OPENAI_API_KEY"))
+    service = OpenAIService(api_key=setme"OPENAI_API_KEY"))
     usage = service.get_usage()
     
     # Verify new fields
@@ -215,7 +215,7 @@ export LOG_LEVEL=DEBUG
 
 # 2. Test Anthropic connectivity
 curl -s https://api.anthropic.com/v1/organizations/usage_report/messages\?starting_at=2026-03-01T00:00:00Z\&ending_at=2026-03-02T23:59:59Z \
-  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "x-api-key: setme" \
   -H "anthropic-version: 2023-06-01" | jq
 
 # 3. Check application logs

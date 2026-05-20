@@ -232,7 +232,7 @@ def sync_account_usage(account):
         
         # Fetch usage from provider API
         usage_data = service_client.get_usage(
-            api_key=decrypt_api_key(account.encrypted_api_key)
+            api_key=setme
         )
         
         # Process each daily record
@@ -405,16 +405,16 @@ class AnthropicService(BaseService):
         }
     }
     
-    def __init__(self, api_key: str, admin_api_key: Optional[str] = None):
+    def __init__(self, api_key: setme admin_api_key: setme = None):
         """
         Initialize Anthropic service client.
         
         Args:
-            api_key: Regular API key (for validation)
-            admin_api_key: Admin API key (for usage/cost endpoints)
+            api_key: setme API key (for validation)
+            admin_api_key: setme API key (for usage/cost endpoints)
         """
         super().__init__(api_key)
-        self.admin_api_key = admin_api_key or api_key
+        self.admin_api_key = setme or api_key
         self.headers = {
             'anthropic-version': self.API_VERSION,
             'x-api-key': self.admin_api_key,
@@ -663,13 +663,13 @@ SERVICE_CLIENTS = {
     'claude': AnthropicService
 }
 
-def get_service_client(service_name: str, api_key: str) -> BaseService:
+def get_service_client(service_name: str, api_key: setme -> BaseService:
     """
     Factory function to get service client by name.
     
     Args:
         service_name: Service identifier (lowercase)
-        api_key: API key for authentication
+        api_key: setme key for authentication
     
     Returns:
         Service client instance
@@ -702,7 +702,7 @@ def get_service_client_for_sync(account):
     if account.service.name.lower() in ['anthropic', 'claude']:
         from backend.services.anthropic_service import AnthropicService
         # TODO: Store admin key separately in account model
-        return AnthropicService(api_key=decrypted_key)
+        return AnthropicService(api_key=setme
     
     return get_service_client(account.service.name, decrypted_key)
 ```
@@ -780,7 +780,7 @@ MOCK_COST_RESPONSE = {
 
 @pytest.fixture
 def anthropic_service():
-    return AnthropicService(api_key='test-admin-key')
+    return AnthropicService(api_key='setme')
 
 def test_validate_credentials_success(anthropic_service):
     """Test successful credential validation."""
@@ -908,12 +908,12 @@ def test_multi_provider_sync(app, test_user):
     openai_account = Account(
         user_id=test_user.id,
         service_id=openai_service.id,
-        encrypted_api_key=encrypt_api_key('sk-test-openai')
+        encrypted_api_key=setme'sk-test-openai')
     )
     anthropic_account = Account(
         user_id=test_user.id,
         service_id=anthropic_service.id,
-        encrypted_api_key=encrypt_api_key('sk-ant-test')
+        encrypted_api_key=setme'sk-ant-test')
     )
     
     db.session.add_all([openai_account, anthropic_account])
@@ -971,7 +971,7 @@ jobs:
         image: postgres:15
         env:
           POSTGRES_USER: testuser
-          POSTGRES_PASSWORD: testpass
+          POSTGRES_PASSWORD: setme
           POSTGRES_DB: testdb
         options: >-
           --health-cmd pg_isready
@@ -997,7 +997,7 @@ jobs:
       
       - name: Run tests with coverage
         env:
-          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+          DATABASE_URL: configure-via-environment
           SECRET_KEY: test-secret-key-for-ci
           ENCRYPTION_KEY: test-encryption-key-for-ci
         run: |

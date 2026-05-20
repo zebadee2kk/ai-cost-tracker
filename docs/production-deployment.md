@@ -45,9 +45,9 @@ Set these in your production `.env` (or secret manager). The app will **hard-fai
 ```bash
 # In your production .env or environment:
 POSTGRES_USER=<strong-username>
-POSTGRES_PASSWORD=<strong-random-password>
+POSTGRES_PASSWORD=setme
 POSTGRES_DB=ai_tracker_prod
-DATABASE_URL=postgresql://<user>:<password>@db:5432/ai_tracker_prod
+DATABASE_URL=configure-via-environment
 ```
 
 Then restart the stack:
@@ -155,7 +155,7 @@ sudo docker compose exec backend python -m pytest tests/test_auth.py tests/test_
 
 # 5. Test each provider credential
 # (Replace TOKEN and ACCOUNT_ID with real values)
-TOKEN=$(curl -s -X POST https://api.ai-cost-tracker.yourdomain.com/api/auth/login \
+TOKEN=setme -s -X POST https://api.ai-cost-tracker.yourdomain.com/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"your@email.com","password":"yourpassword"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
 

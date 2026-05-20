@@ -140,9 +140,9 @@ python backend/scripts/setup_wizard.py --update
 nano .env
 
 # Add new optional providers if desired:
-GROQ_API_KEY=gsk_your_key_here
-PERPLEXITY_API_KEY=pplx-your_key_here
-MISTRAL_API_KEY=your_key_here
+GROQ_API_KEY=setme
+PERPLEXITY_API_KEY=setme
+MISTRAL_API_KEY=setme
 ```
 
 **⚠️ CRITICAL: Anthropic Key Type**
@@ -529,7 +529,7 @@ docker-compose exec backend python scripts/test_providers.py
 # Check specific provider
 docker-compose exec backend python -c "
 from services.anthropic_service import AnthropicService
-svc = AnthropicService(api_key='$ANTHROPIC_ADMIN_API_KEY')
+svc = AnthropicService(api_key='setme')
 svc.validate_credentials()
 "
 ```

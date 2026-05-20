@@ -26,7 +26,7 @@ curl "https://api.anthropic.com/v1/organizations/usage?\
 starting_at=2026-02-01T00:00:00Z&\
 ending_at=2026-02-28T23:59:59Z" \
   --header "anthropic-version: 2023-06-01" \
-  --header "x-api-key: $ADMIN_API_KEY"
+  --header "x-api-key: setme"
 ```
 
 #### Cost Report Endpoint
@@ -37,7 +37,7 @@ ending_at=2026-02-28T23:59:59Z&\
 group_by[]=workspace_id&\
 group_by[]=description" \
   --header "anthropic-version: 2023-06-01" \
-  --header "x-api-key: $ADMIN_API_KEY"
+  --header "x-api-key: setme"
 ```
 
 ### Capabilities

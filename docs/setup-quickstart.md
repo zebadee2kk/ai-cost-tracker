@@ -26,7 +26,7 @@ cp .env.example .env
 
 # Edit .env with your settings
 # ENCRYPTION_KEY=your_generated_key
-# DATABASE_URL=postgresql://user:password@localhost/ai_tracker
+# DATABASE_URL=configure-via-environment
 # SECRET_KEY=your_secret_key_for_jwt
 ```
 
@@ -187,20 +187,20 @@ JWT_SECRET_KEY=your_jwt_secret_key_here  # Required — can match SECRET_KEY
 ENCRYPTION_KEY=your_encryption_key_here
 
 # Database
-DATABASE_URL=postgresql://ai_user:ai_password@localhost:5432/ai_tracker
+DATABASE_URL=configure-via-environment
 # OR for SQLite (development):
 # DATABASE_URL=sqlite:///ai_tracker.db
 
 # API Keys (these should be set by users in the UI, not in .env for production)
-OPENAI_API_KEY=sk-your_key_here
-ANTHROPIC_API_KEY=sk-ant-your_key_here
-GROQ_API_KEY=gsk-your_key_here
+OPENAI_API_KEY=setme
+ANTHROPIC_API_KEY=setme
+GROQ_API_KEY=setme
 
 # Email Configuration (for alerts)
 MAIL_SERVER=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USERNAME=your-email@gmail.com
-MAIL_PASSWORD=your-app-password
+MAIL_PASSWORD=setme
 MAIL_DEFAULT_SENDER=noreply@aitooltracker.com
 
 # Frontend Configuration
@@ -212,7 +212,7 @@ LOG_LEVEL=INFO
 LOG_FILE=logs/app.log
 
 # Session/Cache
-REDIS_URL=redis://localhost:6379/0  # Optional, for caching
+REDIS_URL=configure-via-environment  # Optional, for caching
 
 # Security
 CORS_ORIGINS=http://localhost:3000,http://localhost:5000
@@ -363,7 +363,7 @@ from services.base_service import BaseService
 
 class NewServiceClient(BaseService):
     def __init__(self, api_key):
-        self.api_key = api_key
+        self.api_key = setme
         self.base_url = "https://api.newservice.com/v1"
     
     def get_usage(self):

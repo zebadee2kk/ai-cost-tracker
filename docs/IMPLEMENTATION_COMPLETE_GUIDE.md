@@ -39,14 +39,14 @@ echo $ANTHROPIC_API_KEY | head -c 15
 # 2. Click: "Generate Admin Key" (NOT "API Key")
 # 3. Copy key starting with: sk-ant-admin-
 # 4. Update .env:
-ANTHROPIC_ADMIN_API_KEY=sk-ant-admin-...
+ANTHROPIC_ADMIN_API_KEY=setme
 
 # 5. Restart app
 docker-compose restart backend
 
 # 6. Test connectivity
 curl "https://api.anthropic.com/v1/organizations/usage_report/messages?starting_at=2026-03-01T00:00:00Z&ending_at=2026-03-02T00:00:00Z" \
-  -H "x-api-key: $ANTHROPIC_ADMIN_API_KEY" \
+  -H "x-api-key: setme" \
   -H "anthropic-version: 2023-06-01" | jq .
 
 # Should return data, not 401/403
@@ -124,10 +124,10 @@ logger = get_diagnostic_logger(__name__)
 def test_anthropic():
     """Test Anthropic Admin API."""
     logger.info("Testing Anthropic...")
-    api_key = os.getenv('ANTHROPIC_ADMIN_API_KEY') or os.getenv('ANTHROPIC_API_KEY')
+    api_key = setme'ANTHROPIC_ADMIN_API_KEY') or os.getenv('ANTHROPIC_API_KEY')
     
     if not api_key:
-        logger.error("No Anthropic API key found")
+        setme"No Anthropic API key found")
         return False
     
     logger.info(f"Key prefix: {api_key[:15]}")
@@ -148,10 +148,10 @@ def test_anthropic():
 def test_openai():
     """Test OpenAI API."""
     logger.info("Testing OpenAI...")
-    api_key = os.getenv('OPENAI_API_KEY')
+    api_key = setme'OPENAI_API_KEY')
     
     if not api_key:
-        logger.error("No OpenAI API key found")
+        setme"No OpenAI API key found")
         return False
     
     try:
@@ -284,7 +284,7 @@ logger = get_diagnostic_logger(__name__)
 class GroqService(BaseService):
     """Groq API integration with ultra-fast inference tracking."""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: setme
         super().__init__(api_key)
         self.base_url = "https://api.groq.com/openai/v1"
     
@@ -357,7 +357,7 @@ PRICING = {
 class PerplexityService(BaseService):
     """Perplexity API integration with per-request cost calculation."""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: setme
         super().__init__(api_key)
         self.base_url = "https://api.perplexity.ai"
     

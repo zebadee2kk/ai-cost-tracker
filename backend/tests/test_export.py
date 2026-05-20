@@ -30,11 +30,11 @@ def _register_and_login(client, email, password="password123"):
     return res.get_json()["token"]
 
 
-def _auth(token):
-    return {"Authorization": f"Bearer {token}"}
+def _auth(auth_jwt):
+    return {"Authorization": f"Bearer {auth_jwt}"}
 
 
-def _create_account(client, token, service_id=1):
+def _create_account(client, auth_jwt, service_id=1):
     """Create a test account and return its id."""
     res = client.post(
         "/api/accounts",
@@ -43,7 +43,7 @@ def _create_account(client, token, service_id=1):
             "service_id": service_id,
             "api_key": "sk-test-key",
         },
-        headers=_auth(token),
+        headers=_auth(auth_jwt),
     )
     return res.get_json().get("id") or res.get_json().get("account", {}).get("id")
 
@@ -87,16 +87,16 @@ def test_export_requires_auth(client):
 # ---------------------------------------------------------------------------
 
 def test_export_invalid_format(client, app):
-    token = _register_and_login(client, "export-fmt@test.com")
-    res = client.get("/api/usage/export?format=xml", headers=_auth(token))
+    auth_jwt = _register_and_login(client, "export-fmt@test.com")
+    res = client.get("/api/usage/export?format=xml", headers=_auth(auth_jwt))
     assert res.status_code == 400
     data = res.get_json()
     assert "error" in data
 
 
 def test_export_invalid_start_date(client, app):
-    token = _register_and_login(client, "export-date1@test.com")
-    res = client.get("/api/usage/export?start_date=02/01/2026", headers=_auth(token))
+    auth_jwt = _register_and_login(client, "export-date1@test.com")
+    res = client.get("/api/usage/export?start_date=02/01/2026", headers=_auth(auth_jwt))
     assert res.status_code == 400
     data = res.get_json()
     assert "error" in data
@@ -104,16 +104,16 @@ def test_export_invalid_start_date(client, app):
 
 
 def test_export_invalid_end_date(client, app):
-    token = _register_and_login(client, "export-date2@test.com")
-    res = client.get("/api/usage/export?end_date=not-a-date", headers=_auth(token))
+    auth_jwt = _register_and_login(client, "export-date2@test.com")
+    res = client.get("/api/usage/export?end_date=not-a-date", headers=_auth(auth_jwt))
     assert res.status_code == 400
     data = res.get_json()
     assert "error" in data
 
 
 def test_export_invalid_source(client, app):
-    token = _register_and_login(client, "export-src@test.com")
-    res = client.get("/api/usage/export?source=unknown", headers=_auth(token))
+    auth_jwt = _register_and_login(client, "export-src@test.com")
+    res = client.get("/api/usage/export?source=unknown", headers=_auth(auth_jwt))
     assert res.status_code == 400
     data = res.get_json()
     assert "error" in data
@@ -146,8 +146,8 @@ def test_export_forbidden_account(client, app):
 
 def test_csv_export_empty(client, app):
     """Export with no records returns valid CSV with header only."""
-    token = _register_and_login(client, "export-csv-empty@test.com")
-    res = client.get("/api/usage/export?format=csv", headers=_auth(token))
+    auth_jwt = _register_and_login(client, "export-csv-empty@test.com")
+    res = client.get("/api/usage/export?format=csv", headers=_auth(auth_jwt))
     assert res.status_code == 200
     assert "csv" in res.content_type
     assert "attachment" in res.headers.get("Content-Disposition", "")
@@ -160,16 +160,16 @@ def test_csv_export_empty(client, app):
 
 def test_csv_export_default_format(client, app):
     """Default format (no ?format=) should return CSV."""
-    token = _register_and_login(client, "export-csv-default@test.com")
-    res = client.get("/api/usage/export", headers=_auth(token))
+    auth_jwt = _register_and_login(client, "export-csv-default@test.com")
+    res = client.get("/api/usage/export", headers=_auth(auth_jwt))
     assert res.status_code == 200
     assert "csv" in res.content_type
 
 
 def test_csv_export_headers(client, app):
     """CSV must contain all required column headers."""
-    token = _register_and_login(client, "export-csv-hdr@test.com")
-    res = client.get("/api/usage/export?format=csv", headers=_auth(token))
+    auth_jwt = _register_and_login(client, "export-csv-hdr@test.com")
+    res = client.get("/api/usage/export?format=csv", headers=_auth(auth_jwt))
     assert res.status_code == 200
 
     content = res.data.decode("utf-8-sig")
@@ -180,8 +180,8 @@ def test_csv_export_headers(client, app):
 
 def test_csv_export_content_disposition(client, app):
     """Content-Disposition header must be 'attachment' with a .csv filename."""
-    token = _register_and_login(client, "export-cd-csv@test.com")
-    res = client.get("/api/usage/export?format=csv", headers=_auth(token))
+    auth_jwt = _register_and_login(client, "export-cd-csv@test.com")
+    res = client.get("/api/usage/export?format=csv", headers=_auth(auth_jwt))
     cd = res.headers.get("Content-Disposition", "")
     assert "attachment" in cd
     assert ".csv" in cd
@@ -193,8 +193,8 @@ def test_csv_export_content_disposition(client, app):
 
 def test_json_export_structure(client, app):
     """JSON export must contain export_metadata and records keys."""
-    token = _register_and_login(client, "export-json-struct@test.com")
-    res = client.get("/api/usage/export?format=json", headers=_auth(token))
+    auth_jwt = _register_and_login(client, "export-json-struct@test.com")
+    res = client.get("/api/usage/export?format=json", headers=_auth(auth_jwt))
     assert res.status_code == 200
 
     data = json.loads(res.data)
@@ -205,10 +205,10 @@ def test_json_export_structure(client, app):
 
 def test_json_export_metadata_fields(client, app):
     """JSON export_metadata must include generated_at, date_range, filters."""
-    token = _register_and_login(client, "export-json-meta@test.com")
+    auth_jwt = _register_and_login(client, "export-json-meta@test.com")
     res = client.get(
         "/api/usage/export?format=json&start_date=2026-01-01&end_date=2026-02-28",
-        headers=_auth(token),
+        headers=_auth(auth_jwt),
     )
     assert res.status_code == 200
     meta = json.loads(res.data)["export_metadata"]
@@ -219,8 +219,8 @@ def test_json_export_metadata_fields(client, app):
 
 def test_json_export_content_disposition(client, app):
     """Content-Disposition header must be 'attachment' with a .json filename."""
-    token = _register_and_login(client, "export-cd-json@test.com")
-    res = client.get("/api/usage/export?format=json", headers=_auth(token))
+    auth_jwt = _register_and_login(client, "export-cd-json@test.com")
+    res = client.get("/api/usage/export?format=json", headers=_auth(auth_jwt))
     cd = res.headers.get("Content-Disposition", "")
     assert "attachment" in cd
     assert ".json" in cd
@@ -232,10 +232,10 @@ def test_json_export_content_disposition(client, app):
 
 def test_export_date_range_valid(client, app):
     """Valid date range parameters produce 200 without error."""
-    token = _register_and_login(client, "export-dr@test.com")
+    auth_jwt = _register_and_login(client, "export-dr@test.com")
     res = client.get(
         "/api/usage/export?start_date=2026-02-01&end_date=2026-02-28",
-        headers=_auth(token),
+        headers=_auth(auth_jwt),
     )
     assert res.status_code == 200
 
@@ -246,22 +246,22 @@ def test_export_date_range_valid(client, app):
 
 def test_export_source_all(client, app):
     """source=all should be accepted and return 200."""
-    token = _register_and_login(client, "export-src-all@test.com")
-    res = client.get("/api/usage/export?source=all", headers=_auth(token))
+    auth_jwt = _register_and_login(client, "export-src-all@test.com")
+    res = client.get("/api/usage/export?source=all", headers=_auth(auth_jwt))
     assert res.status_code == 200
 
 
 def test_export_source_api(client, app):
     """source=api should be accepted and return 200."""
-    token = _register_and_login(client, "export-src-api@test.com")
-    res = client.get("/api/usage/export?source=api", headers=_auth(token))
+    auth_jwt = _register_and_login(client, "export-src-api@test.com")
+    res = client.get("/api/usage/export?source=api", headers=_auth(auth_jwt))
     assert res.status_code == 200
 
 
 def test_export_source_manual(client, app):
     """source=manual should be accepted and return 200."""
-    token = _register_and_login(client, "export-src-manual@test.com")
-    res = client.get("/api/usage/export?source=manual", headers=_auth(token))
+    auth_jwt = _register_and_login(client, "export-src-manual@test.com")
+    res = client.get("/api/usage/export?source=manual", headers=_auth(auth_jwt))
     assert res.status_code == 200
 
 
@@ -271,6 +271,6 @@ def test_export_source_manual(client, app):
 
 def test_export_xaccel_header(client, app):
     """X-Accel-Buffering: no must be set on streaming responses."""
-    token = _register_and_login(client, "export-xaccel@test.com")
-    res = client.get("/api/usage/export", headers=_auth(token))
+    auth_jwt = _register_and_login(client, "export-xaccel@test.com")
+    res = client.get("/api/usage/export", headers=_auth(auth_jwt))
     assert res.headers.get("X-Accel-Buffering", "").lower() == "no"

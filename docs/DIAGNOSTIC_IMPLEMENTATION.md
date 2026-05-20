@@ -48,7 +48,7 @@ logger = get_diagnostic_logger(__name__)
 ### 2. Log API Initialization
 
 ```python
-def __init__(self, api_key: str):
+def __init__(self, api_key: setme
     super().__init__(api_key)
     
     logger.debug(
@@ -313,7 +313,7 @@ class PerplexityService(BaseService):
     
     BASE_URL = "https://api.perplexity.ai"
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: setme
         super().__init__(api_key)
         
         if not api_key.startswith('pplx-'):
@@ -463,7 +463,7 @@ def test_anthropic_with_logging(caplog):
     """Test that Anthropic service logs all operations."""
     
     # Arrange
-    api_key = os.environ.get('ANTHROPIC_ADMIN_API_KEY')
+    api_key = setme'ANTHROPIC_ADMIN_API_KEY')
     service = AnthropicService(api_key)
     
     # Act
