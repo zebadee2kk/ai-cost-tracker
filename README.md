@@ -1,5 +1,13 @@
 # AI Cost Tracker
 
+## Public repository status
+
+Active internal development has moved to the private `zebadee2kk/agent-toolkit` repository at:
+
+`zebadee2kk/agent-toolkit/ai-cost-tracker/`
+
+This public repository remains available as a public reference unless Richard separately approves archive. External users should treat this repository as public reference / legacy unless otherwise updated.
+
 > A unified dashboard to track usage and costs across multiple AI services: OpenAI/ChatGPT, Anthropic Claude, Groq, Perplexity, and more. Monitor token consumption, costs, and usage patterns in real-time with automated alerts.
 
 [![CI/CD](https://github.com/zebadee2kk/ai-cost-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/zebadee2kk/ai-cost-tracker/actions/workflows/ci.yml)
