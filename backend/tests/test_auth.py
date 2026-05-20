@@ -45,7 +45,7 @@ def test_me_requires_auth(client):
 
 def test_me_with_token(client):
     reg = client.post("/api/auth/register", json={"email": "me@example.com", "password": "password123"})
-    token = reg.get_json()["token"]
-    res = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    auth_jwt = reg.get_json()["token"]
+    res = client.get("/api/auth/me", headers={"Authorization": f"Bearer {auth_jwt}"})
     assert res.status_code == 200
     assert res.get_json()["user"]["email"] == "me@example.com"

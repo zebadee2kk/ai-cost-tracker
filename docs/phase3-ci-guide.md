@@ -87,7 +87,7 @@ jobs:
         image: postgres:15
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: testpass
+          POSTGRES_PASSWORD: setme
           POSTGRES_DB: testdb
         options: >-
           --health-cmd pg_isready
@@ -119,7 +119,7 @@ jobs:
           cd backend
           flask db upgrade
         env:
-          DATABASE_URL: postgresql://postgres:testpass@localhost:5432/testdb
+          DATABASE_URL: configure-via-environment
           FLASK_APP: app.py
           SECRET_KEY: test-secret-key-for-ci-only
           ENCRYPTION_KEY: test-encryption-key-32-chars!!
@@ -133,7 +133,7 @@ jobs:
             --cov-report=html \
             --cov-report=term-missing
         env:
-          DATABASE_URL: postgresql://postgres:testpass@localhost:5432/testdb
+          DATABASE_URL: configure-via-environment
           FLASK_APP: app.py
           SECRET_KEY: test-secret-key-for-ci-only
           ENCRYPTION_KEY: test-encryption-key-32-chars!!
@@ -151,7 +151,7 @@ jobs:
           name: backend-coverage
           fail_ci_if_error: false
         env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          CODECOV_TOKEN: setme secrets.CODECOV_TOKEN }}
       
       - name: Archive coverage report
         uses: actions/upload-artifact@v4
@@ -208,7 +208,7 @@ jobs:
           name: frontend-coverage
           fail_ci_if_error: false
         env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          CODECOV_TOKEN: setme secrets.CODECOV_TOKEN }}
       
       - name: Archive build artifacts
         uses: actions/upload-artifact@v4
@@ -290,7 +290,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: setme secrets.DOCKERHUB_TOKEN }}
       
       - name: Extract version from commit
         id: version

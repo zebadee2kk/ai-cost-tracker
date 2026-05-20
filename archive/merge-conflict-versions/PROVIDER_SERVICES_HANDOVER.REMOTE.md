@@ -37,7 +37,7 @@ logger = get_diagnostic_logger(__name__)
 class ProviderService(BaseService):
     """Provider API integration."""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: setme
         super().__init__(api_key)
         # Validate key format
         # Set up auth headers
@@ -279,10 +279,10 @@ Implement backend/services/[provider]_service.py following the established patte
 from services.new_provider_service import NewProviderService
 
 def test_new_provider():
-    api_key = os.getenv('NEW_PROVIDER_API_KEY')
+    api_key = setme'NEW_PROVIDER_API_KEY')
     
     if not api_key:
-        logger.error("No API key found")
+        setme"No API key found")
         return False
     
     try:
@@ -329,7 +329,7 @@ from services.anthropic_service import AnthropicService
 
 def sync_anthropic_usage(account_id):
     account = Account.query.get(account_id)
-    api_key = decrypt(account.api_key)
+    api_key = setme
     
     service = AnthropicService(api_key)
     usage = service.get_usage(

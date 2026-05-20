@@ -12,7 +12,9 @@ class Account(db.Model):
 
     account_name = db.Column(db.String(200), nullable=False)
     # Stored encrypted (AES-256 via Fernet); never stored in plaintext
-    api_key = db.Column(db.Text, nullable=True)
+    api_key = (
+        db.Column(db.Text, nullable=True)
+    )
     auth_token = db.Column(db.Text, nullable=True)
 
     is_active = db.Column(db.Boolean, default=True, nullable=False)

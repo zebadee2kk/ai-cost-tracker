@@ -147,7 +147,9 @@ def _dispatch_item(app, db, item, rate_limiter) -> None:
         if item.channel == "email":
             from services.notifications.email_sender import EmailSender
             sender = EmailSender(
-                api_key=app.config.get("SENDGRID_API_KEY", ""),
+                api_key=
+
+                    app.config.get("SENDGRID_API_KEY", ""),
                 from_email=app.config.get("SENDGRID_FROM_EMAIL", ""),
                 from_name=app.config.get("SENDGRID_FROM_NAME", "AI Cost Tracker"),
             )

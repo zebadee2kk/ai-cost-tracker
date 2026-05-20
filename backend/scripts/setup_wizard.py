@@ -216,7 +216,7 @@ def save_env_file(env_vars: Dict[str, str]):
         
         # Database
         f.write("\n# Database Configuration\n")
-        db_url = env_vars.get('DATABASE_URL', 'postgresql://postgres:postgres@db:5432/ai_cost_tracker')
+        db_url = env_vars.get('DATABASE_URL', 'configure-via-environment')
         f.write(f"DATABASE_URL={db_url}\n")
         
         # Flask
@@ -293,9 +293,11 @@ def setup_provider(provider_id: str, existing_env: Dict[str, str], update_mode: 
         print(f"\n{Colors.BOLD}Paste your API key below{Colors.ENDC}")
         print(f"{Colors.WARNING}(Input will be hidden for security){Colors.ENDC}")
         
-        api_key = getpass.getpass(f"{config['name']} API Key: ").strip()
+        api_key = (
+            getpass.getpass(f"{config['name']} API Key: ").strip()
+        )
         
-        if not api_key:
+        if not provider_key:
             if not config['required']:
                 print_info("Skipped")
                 return None
@@ -314,7 +316,7 @@ def setup_provider(provider_id: str, existing_env: Dict[str, str], update_mode: 
         print_success("Key format looks valid")
         
         # Confirm
-        masked_key = api_key[:15] + '...' + api_key[-4:] if len(api_key) > 20 else '***'
+        masked_key = provider_key[:15] + '...' + api_key[-4:] if len(api_key) > 20 else '***'
         print(f"\n{Colors.OKCYAN}Key:{Colors.ENDC} {masked_key}")
         response = input(f"{Colors.OKCYAN}Save this key? (Y/n): {Colors.ENDC}").strip().lower()
         if response != 'n':
@@ -386,9 +388,9 @@ def main():
     new_env = existing_env.copy()
     
     for provider_id in PROVIDERS.keys():
-        api_key = setup_provider(provider_id, existing_env, update_mode)
-        if api_key:
-            new_env[PROVIDERS[provider_id]['env_var']] = api_key
+        provider_key = setup_provider(provider_id, existing_env, update_mode)
+        if provider_key:
+            new_env[PROVIDERS[provider_id]['env_var']] = provider_key
     
     # Save configuration
     print_header("Saving Configuration")

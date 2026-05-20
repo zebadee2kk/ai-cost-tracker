@@ -210,7 +210,7 @@ FLASK_ENV=development
 FLASK_APP=app.py
 SECRET_KEY=<generate with: python -c "import secrets; print(secrets.token_hex(32))">
 ENCRYPTION_KEY=<generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())">
-DATABASE_URL=postgresql://user:password@localhost:5432/ai_tracker
+DATABASE_URL=configure-via-environment
 
 # Frontend
 REACT_APP_API_URL=http://localhost:5000/api

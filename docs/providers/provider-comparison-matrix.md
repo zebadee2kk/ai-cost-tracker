@@ -83,7 +83,7 @@ curl "https://api.openai.com/v1/organization/usage/completions?start_time=$(date
 
 # Anthropic
 curl "https://api.anthropic.com/v1/organizations/usage_report/messages?starting_at=2026-03-01T00:00:00Z&ending_at=2026-03-02T00:00:00Z" \
-  -H "x-api-key: $ANTHROPIC_ADMIN_API_KEY" \
+  -H "x-api-key: setme" \
   -H "anthropic-version: 2023-06-01" | jq '.data | length'
 ```
 

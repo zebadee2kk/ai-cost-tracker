@@ -166,16 +166,16 @@ cp .env.example .env
 
 ```bash
 # Required
-ANTHROPIC_ADMIN_API_KEY=sk-ant-admin-YOUR-KEY-HERE
-OPENAI_API_KEY=sk-YOUR-KEY-HERE
+ANTHROPIC_ADMIN_API_KEY=setme
+OPENAI_API_KEY=setme
 
 # Optional
-GROQ_API_KEY=gsk_YOUR-KEY-HERE
-PERPLEXITY_API_KEY=pplx-YOUR-KEY-HERE
-MISTRAL_API_KEY=YOUR-KEY-HERE
+GROQ_API_KEY=setme
+PERPLEXITY_API_KEY=setme
+MISTRAL_API_KEY=setme
 
 # Database
-DATABASE_URL=postgresql://postgres:postgres@db:5432/ai_cost_tracker
+DATABASE_URL=configure-via-environment
 
 # Flask
 FLASK_ENV=development
@@ -271,7 +271,7 @@ echo $ANTHROPIC_ADMIN_API_KEY | head -c 15
 **Test manually:**
 ```bash
 # Anthropic
-curl -H "x-api-key: $ANTHROPIC_ADMIN_API_KEY" \
+curl -H "x-api-key: setme" \
      https://api.anthropic.com/v1/messages
 
 # OpenAI
@@ -363,12 +363,12 @@ python backend/scripts/test_providers.py
 
 The wizard asks for database configuration. Default:
 ```
-postgresql://postgres:postgres@db:5432/ai_cost_tracker
+configure-via-environment
 ```
 
 For custom setup:
 ```
-postgresql://user:password@host:port/database
+configure-via-environment
 ```
 
 ### Environment-Specific Setup
@@ -396,8 +396,8 @@ docker-compose --env-file .env.production up -d
 
 # Create .env programmatically
 cat > .env << EOF
-ANTHROPIC_ADMIN_API_KEY=$ANTHROPIC_KEY
-OPENAI_API_KEY=$OPENAI_KEY
+ANTHROPIC_ADMIN_API_KEY=setme
+OPENAI_API_KEY=setme
 EOF
 ```
 
