@@ -16,6 +16,7 @@ This public repository remains available as a public reference unless Richard se
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Node](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
 [![Phase](https://img.shields.io/badge/Phase-3%20Sprint%203%20Week%201%20Complete-brightgreen)](docs/phase3-status.md)
+[![Disposition](https://img.shields.io/badge/Disposition-Public%20Reference%20%28Legacy%29-blue)](docs/disposition-decision.md)
 
 ---
 
