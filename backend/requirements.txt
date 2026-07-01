@@ -12,7 +12,7 @@ python-dotenv==1.0.1
 bcrypt==5.0.0
 marshmallow==4.3.0
 requests==2.32.5
-apscheduler==3.11.2
+apscheduler==3.11.3
 numpy==2.4.4
 scipy==1.17.1
 pytest==9.0.3
